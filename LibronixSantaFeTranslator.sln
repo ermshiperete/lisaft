@@ -3,16 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 10.00
 # Visual Studio 2008
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LiSaFT", "LibronixSantaFeTranslator\LiSaFT.csproj", "{64D4342F-857A-4D75-89FC-3B9E7B6D505B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LibronixLinker", "..\..\..\..\..\..\fw\Src\TE\LibronixLinker\LibronixLinker.csproj", "{BFE8A8E4-4270-42F7-98A1-3B966CB8FA8E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LibronixLinker", "fw\Src\TE\LibronixLinker\LibronixLinker.csproj", "{BFE8A8E4-4270-42F7-98A1-3B966CB8FA8E}"
 EndProject
 Global
-	GlobalSection(SourceCodeControl) = preSolution
-		SccNumberOfProjects = 1
-		SccProjectUniqueName0 = ..\\..\\..\\..\\..\\..\\fw\\Src\\TE\\LibronixLinker\\LibronixLinker.csproj
-		SccProjectName0 = Perforce\u0020Project
-		SccLocalPath0 = ..\\..\\..\\..\\..\\..\\fw\\Src\\TE\\LibronixLinker
-		SccProvider0 = MSSCCI:Perforce\u0020SCM
-	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
