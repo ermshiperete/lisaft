@@ -15,9 +15,7 @@
 // </remarks>
 // ---------------------------------------------------------------------------------------------
 using System;
-using System.IO;
 using System.Collections.Generic;
-using System.Diagnostics;
 
 namespace SIL.FieldWorks.Common.ScriptureUtils
 {
@@ -56,7 +54,7 @@ namespace SIL.FieldWorks.Common.ScriptureUtils
 	public struct ScrReference
 	{
 		#region Member variables
-		private static List<string> s_SIL_BookCodes = new List<string>(new string[]
+		private static readonly List<string> s_SIL_BookCodes = new List<string>(new[]
 		{
 			"",	// 0th entry is invalid, book indices are 1-based
 			"GEN", "EXO", "LEV", "NUM", "DEU", "JOS", "JDG", "RUT", "1SA", "2SA",
@@ -93,8 +91,8 @@ namespace SIL.FieldWorks.Common.ScriptureUtils
 		/// </summary>
 		/// <param name="initialRef"></param>
 		/// ------------------------------------------------------------------------------------
-		public ScrReference(int initialRef): this(ScrReference.GetBookFromBcv(initialRef), 
-			ScrReference.GetChapterFromBcv(initialRef), ScrReference.GetVerseFromBcv(initialRef), 0)
+		public ScrReference(int initialRef): this(GetBookFromBcv(initialRef), 
+			GetChapterFromBcv(initialRef), GetVerseFromBcv(initialRef), 0)
 		{
 		}
 
@@ -134,7 +132,7 @@ namespace SIL.FieldWorks.Common.ScriptureUtils
 
 		/// ------------------------------------------------------------------------------------
 		/// <summary>
-		/// Initializes a new instance of the <see cref="T:ScrReference"/> class.
+		/// Initializes a new instance of the <see cref="ScrReference"/> struct.
 		/// </summary>
 		/// <param name="strReference">The reference as a string.</param>
 		/// ------------------------------------------------------------------------------------
@@ -723,22 +721,21 @@ namespace SIL.FieldWorks.Common.ScriptureUtils
 
 			if (startRef.Chapter != endRef.Chapter)
 			{
-				return bookName + " " + startRef.Chapter.ToString() + chapterVerseSeparator + 
-					startRef.Verse.ToString() + verseBridge + endRef.Chapter.ToString() +
-					chapterVerseSeparator + endRef.Verse.ToString();
+				return bookName + " " + startRef.Chapter + chapterVerseSeparator + 
+					startRef.Verse + verseBridge + endRef.Chapter +
+					chapterVerseSeparator + endRef.Verse;
 			}
-			else if (startRef.Verse != endRef.Verse)
+			if (startRef.Verse != endRef.Verse)
 			{
-				return bookName + " " + startRef.Chapter.ToString() + chapterVerseSeparator + 
-					startRef.Verse.ToString() + verseBridge + endRef.Verse.ToString();
+				return bookName + " " + startRef.Chapter + chapterVerseSeparator + 
+					startRef.Verse + verseBridge + endRef.Verse;
 			}
-			else if (startRef.Verse != 0)
+			if (startRef.Verse != 0)
 			{
-				return bookName + " " + startRef.Chapter.ToString() + chapterVerseSeparator + 
-					startRef.Verse.ToString();
+				return bookName + " " + startRef.Chapter + chapterVerseSeparator + 
+					startRef.Verse;
 			}
-			else
-				return bookName;
+			return bookName;
 		}
 
 		/// ------------------------------------------------------------------------------------
@@ -1108,9 +1105,7 @@ namespace SIL.FieldWorks.Common.ScriptureUtils
 			}
 
 			literalVerse = sourceString.Substring(0, stringSplitPos);
-			remainingText = sourceString.Substring(stringSplitPos);
-			if (remainingText == null)
-				remainingText = string.Empty;
+			remainingText = sourceString.Substring(stringSplitPos) ?? string.Empty;
 
 			// parse the verse string to get the verse numbers out.
 			prevChar = '\0';

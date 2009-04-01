@@ -1,10 +1,7 @@
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Text;
+using System.Diagnostics;
 using System.Windows.Forms;
+using NetMatters;
 using SIL.FieldWorks.Common.ScriptureUtils;
 using SIL.FieldWorks.TE.LibronixLinker;
 
@@ -18,6 +15,7 @@ namespace LibronixSantaFeTranslator
 	public partial class LiSaFT : Form
 	{
 		private LibronixPositionHandler m_positionHandler;
+		private int m_lastBBCCCVVV;
 
 		/// ------------------------------------------------------------------------------------
 		/// <summary>
@@ -41,6 +39,9 @@ namespace LibronixSantaFeTranslator
 				m_positionHandler = null;
 				MessageBox.Show(e.Message);
 			}
+
+			MessageEvents.WatchMessage(SantaFeFocusMessageHandler.FocusMsg);
+			MessageEvents.MessageReceived += OnSantaFeFocusMessage;
 		}
 
 		/// ------------------------------------------------------------------------------------
@@ -54,8 +55,9 @@ namespace LibronixSantaFeTranslator
 				return;
 
 			m_positionHandler = LibronixPositionHandler.CreateInstance(
-				Properties.Settings.Default.StartLibronix, Properties.Settings.Default.LinkSet, true);
-			m_positionHandler.PositionChanged += OnPositionChanged;
+				Properties.Settings.Default.StartLibronix, Properties.Settings.Default.LinkSet, 
+				true);
+			m_positionHandler.PositionChanged += OnPositionInLibronixChanged;
 
 			// Add all Libronix link sets to the combo box.
 			if (m_positionHandler.AvailableLinkSets.Count > 0)
@@ -65,11 +67,36 @@ namespace LibronixSantaFeTranslator
 					m_LinkSetCombo.Items.Add(linkSet);
 			}
 
-			if (Properties.Settings.Default.LinkSet < m_LinkSetCombo.Items.Count)
-				m_LinkSetCombo.SelectedIndex = Properties.Settings.Default.LinkSet;
-			else
-				m_LinkSetCombo.SelectedIndex = 0;
+			m_LinkSetCombo.SelectedIndex = 
+				Properties.Settings.Default.LinkSet >= m_LinkSetCombo.Items.Count ? 0 : 
+				Properties.Settings.Default.LinkSet;
 		}
+
+		/// ------------------------------------------------------------------------------------
+		/// <summary>
+		/// Called when a SantaFeFocusMessage is received.
+		/// </summary>
+		/// <param name="sender">The sender.</param>
+		/// <param name="e">The <see cref="NetMatters.MessageReceivedEventArgs"/> instance 
+		/// containing the event data.</param>
+		/// ------------------------------------------------------------------------------------
+		protected void OnSantaFeFocusMessage(object sender, MessageReceivedEventArgs e)
+		{
+			Debug.Assert(e.Message.Msg == SantaFeFocusMessageHandler.FocusMsg);
+			ScrReference scrRef = new ScrReference(
+				SantaFeFocusMessageHandler.ReceiveFocusMessage(e.Message));
+			if (!scrRef.Valid || m_lastBBCCCVVV == scrRef.BBCCCVVV) 
+				return;
+
+			Debug.WriteLine(string.Format(
+           		"New position from SantaFe: {0}; Book {1}, Chapter {2}, Verse {3}; {4}",
+           		scrRef.BBCCCVVV, scrRef.Book, scrRef.Chapter, scrRef.Verse,
+           		scrRef.AsString));
+
+			m_lastBBCCCVVV = scrRef.BBCCCVVV;
+			OnPositionInSantaFeChanged(this, new PositionChangedEventArgs(scrRef.BBCCCVVV));
+		}
+
 
 		/// ------------------------------------------------------------------------------------
 		/// <summary>
@@ -79,16 +106,31 @@ namespace LibronixSantaFeTranslator
 		/// <param name="e">The <see cref="SIL.FieldWorks.TE.LibronixLinker.PositionChangedEventArgs"/> 
 		/// instance containing the event data.</param>
 		/// ------------------------------------------------------------------------------------
-		private void OnPositionChanged(object sender, PositionChangedEventArgs e)
+		private void OnPositionInLibronixChanged(object sender, PositionChangedEventArgs e)
 		{
 			ScrReference scrRef = new ScrReference(e.BcvRef);
-			if (!scrRef.Valid)
+			if (!scrRef.Valid || m_lastBBCCCVVV == scrRef.BBCCCVVV)
 				return;
 
-			System.Diagnostics.Debug.WriteLine(string.Format(
-				"New position: {0}; Book {1}, Chapter {2}, Verse {3}; {4}",
+			Debug.WriteLine(string.Format(
+				"New position from Libronix: {0}; Book {1}, Chapter {2}, Verse {3}; {4}",
 				e.BcvRef, scrRef.Book, scrRef.Chapter, scrRef.Verse, scrRef.AsString));
+			m_lastBBCCCVVV = scrRef.BBCCCVVV;
 			SantaFeFocusMessageHandler.SendFocusMessage(scrRef.AsString);
+		}
+
+		/// ------------------------------------------------------------------------------------
+		/// <summary>
+		/// Called when the position changed messages comes from SantaFe.
+		/// </summary>
+		/// <param name="sender">The sender.</param>
+		/// <param name="e">The <see cref="SIL.FieldWorks.TE.LibronixLinker.PositionChangedEventArgs"/> 
+		/// instance containing the event data.</param>
+		/// ------------------------------------------------------------------------------------
+		private void OnPositionInSantaFeChanged(object sender, PositionChangedEventArgs e)
+		{
+			if (m_positionHandler != null)
+				m_positionHandler.SetLibronixFocus(e.BcvRef);
 		}
 
 		/// ------------------------------------------------------------------------------------
@@ -145,7 +187,8 @@ namespace LibronixSantaFeTranslator
 			Properties.Settings.Default.LinkSet = m_LinkSetCombo.SelectedIndex;
 			Properties.Settings.Default.StartLibronix = chkbStartLibronix.Checked;
 			Properties.Settings.Default.Save();
-			m_positionHandler.Refresh(Properties.Settings.Default.LinkSet);
+			if (m_positionHandler != null)
+				m_positionHandler.Refresh(Properties.Settings.Default.LinkSet);
 			OnCancel(sender, e);
 		}
 
@@ -175,7 +218,5 @@ namespace LibronixSantaFeTranslator
 		{
 			Close();
 		}
-
-
 	}
 }

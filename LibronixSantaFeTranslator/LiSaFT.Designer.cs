@@ -67,31 +67,31 @@ namespace LibronixSantaFeTranslator
             this.toolStripMenuItem1,
             this.exitToolStripMenuItem});
 			m_contextMenuStrip.Name = "m_contextMenuStrip";
-			m_contextMenuStrip.Size = new System.Drawing.Size(113, 76);
+			m_contextMenuStrip.Size = new System.Drawing.Size(114, 76);
 			// 
 			// configToolStripMenuItem
 			// 
 			this.configToolStripMenuItem.Name = "configToolStripMenuItem";
-			this.configToolStripMenuItem.Size = new System.Drawing.Size(112, 22);
+			this.configToolStripMenuItem.Size = new System.Drawing.Size(113, 22);
 			this.configToolStripMenuItem.Text = "&Config";
 			this.configToolStripMenuItem.Click += new System.EventHandler(this.OnConfig);
 			// 
 			// refreshToolStripMenuItem
 			// 
 			this.refreshToolStripMenuItem.Name = "refreshToolStripMenuItem";
-			this.refreshToolStripMenuItem.Size = new System.Drawing.Size(112, 22);
+			this.refreshToolStripMenuItem.Size = new System.Drawing.Size(113, 22);
 			this.refreshToolStripMenuItem.Text = "&Refresh";
 			this.refreshToolStripMenuItem.Click += new System.EventHandler(this.OnRefresh);
 			// 
 			// toolStripMenuItem1
 			// 
 			this.toolStripMenuItem1.Name = "toolStripMenuItem1";
-			this.toolStripMenuItem1.Size = new System.Drawing.Size(109, 6);
+			this.toolStripMenuItem1.Size = new System.Drawing.Size(110, 6);
 			// 
 			// exitToolStripMenuItem
 			// 
 			this.exitToolStripMenuItem.Name = "exitToolStripMenuItem";
-			this.exitToolStripMenuItem.Size = new System.Drawing.Size(112, 22);
+			this.exitToolStripMenuItem.Size = new System.Drawing.Size(113, 22);
 			this.exitToolStripMenuItem.Text = "&Exit";
 			this.exitToolStripMenuItem.Click += new System.EventHandler(this.OnExit);
 			// 

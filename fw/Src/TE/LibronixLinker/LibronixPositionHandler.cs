@@ -15,7 +15,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Threading;
 using System.Windows.Forms;
 using LibronixDLS;
 using LibronixDLSUtility;
@@ -74,7 +73,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 	/// ----------------------------------------------------------------------------------------
 	public class PositionChangedEventArgs : EventArgs
 	{
-		private int m_BcvRef;
+		private readonly int m_BcvRef;
 
 		/// ------------------------------------------------------------------------------------
 		/// <summary>
@@ -131,15 +130,15 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		private struct LinkInfo
 		{
 			/// <summary>The resource window info in Libronix</summary>
-			public LbxResourceWindowInfo WindowInfo;
+			public readonly LbxResourceWindowInfo WindowInfo;
 			/// <summary>A cookie that identifies the connection</summary>
-			public int Cookie;
+			public readonly int Cookie;
 			/// <summary>Positions list in Libronix</summary>
-			public LbxResourcePositions Positions;
+			public readonly LbxResourcePositions Positions;
 
 			/// --------------------------------------------------------------------------------
 			/// <summary>
-			/// Initializes a new instance of the <see cref="T:LinkInfo"/> class.
+			/// Initializes a new instance of the LinkInfo struct.
 			/// </summary>
 			/// <param name="windowInfo">The window info.</param>
 			/// <param name="cookie">The cookie.</param>
@@ -148,16 +147,16 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 			public LinkInfo(LbxResourceWindowInfo windowInfo, int cookie,
 				LbxResourcePositions positions)
 			{
-				this.WindowInfo = windowInfo;
-				this.Cookie = cookie;
-				this.Positions = positions;
+				WindowInfo = windowInfo;
+				Cookie = cookie;
+				Positions = positions;
 			}
 		}
 		#endregion
 
-		/// <summary>Represents the method that will raise the PositionChanged event</summary>
-		/// <param name="e">Event arguments.</param>
-		private delegate void PositionChangedDelegate(PositionChangedEventArgs e);
+		///// <summary>Represents the method that will raise the PositionChanged event</summary>
+		///// <param name="e">Event arguments.</param>
+		//private delegate void PositionChangedDelegate(PositionChangedEventArgs e);
 
 		#region Member variables
 		/// <summary>Set to <c>true</c> if we know for sure that Libronix isn't installed. If set
@@ -179,7 +178,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		/// <remarks>Note: we can't use lock(this) (or equivalent) since we use lock(this)
 		/// in the Dispose(bool) method which might result in dead locks!
 		/// </remarks>
-		private object m_Synchronizer = new object();
+		private readonly object m_Synchronizer = new object();
 		/// <summary>Timer that we use to check if Libronix got started</summary>
 		private System.Windows.Forms.Timer m_timer;
 
@@ -192,7 +191,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		/// <summary>The link set which we want to use</summary>
 		private volatile int m_LinkSet;
 		/// <summary><c>true</c> if we should try to start Libronix in case it's not running.</summary>
-		private bool m_fStart;
+		private readonly bool m_fStart;
 		/// <summary><c>true</c> if we are in the middle of sending or receiving a sync message</summary>
 		private bool m_fProcessingMessage;
 
@@ -202,7 +201,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		private int m_bcvRef = -1;
 
 		/// <summary>Fired when the scroll position of a resource is changed in Libronix</summary>
-		/// <remarks>The <paramref name="bcvRef"/> reference is in BBCCCVVV format. The book number
+		/// <remarks>The BcvRef reference is in BBCCCVVV format. The book number
 		/// is 1-39 for OT books and 40-66 for NT books. Apocrypha are not supported. The 
 		/// conversion between Libronix and BBCCCVVV format doesn't consider any versification
 		/// issues.</remarks>
@@ -211,7 +210,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		/// why we assign a do-nothing event handler.</developernote>
 		public event EventHandler<PositionChangedEventArgs> PositionChanged = delegate { };
 
-		PositionChangedEventArgs m_lastPositionArgs; // set by Libronix, used in onIdle
+		private PositionChangedEventArgs m_lastPositionArgs; // set by Libronix, used in onIdle
 		#endregion
 
 		#region Construction
@@ -435,7 +434,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 				{
 					if (IsNotInstalled)
 						throw new LibronixNotInstalledException("Libronix isn't installed", null);
-					else if (fThrowNotRunningException)
+					if (fThrowNotRunningException)
 						throw new LibronixNotRunningException("Libronix isn't running", null);
 				}
 			}
@@ -464,8 +463,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 						try
 						{
 							// try to start
-							m_libronixApp = new LbxApplicationClass();
-							m_libronixApp.Visible = true;
+							m_libronixApp = new LbxApplicationClass { Visible = true };
 						}
 						catch (Exception e1)
 						{
@@ -505,7 +503,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 			//    new DLbxResourcePositionChanged_PositionChangedEventHandler(OnPositionChangedInLibronix);
 
 			m_ApplicationEventsBridge = new LbxApplicationEventsBridgeClass();
-			m_ApplicationEventsBridge.EventFired += new DLbxApplicationEvents_EventFiredEventHandler(OnApplicationEventsBridgeEventFired);
+			m_ApplicationEventsBridge.EventFired += OnApplicationEventsBridgeEventFired;
 			m_ApplicationEventsCookie = m_ApplicationEventsBridge.Connect(m_libronixApp);
 
 			SetupPositionEvents();
@@ -520,9 +518,8 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		{
 			if (m_timer == null)
 			{
-				m_timer = new System.Windows.Forms.Timer();
-				m_timer.Interval = 1000;
-				m_timer.Tick += new EventHandler(OnTimer);
+				m_timer = new System.Windows.Forms.Timer { Interval = 1000 };
+				m_timer.Tick += OnTimer;
 				m_timer.Start();
 			}
 		}
@@ -536,9 +533,8 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		{
 			if (m_pollTimer == null)
 			{
-				m_pollTimer = new System.Windows.Forms.Timer();
-				m_pollTimer.Interval = 1000;
-				m_pollTimer.Tick += new EventHandler(m_pollTimer_Tick);
+				m_pollTimer = new System.Windows.Forms.Timer {Interval = 1000};
+				m_pollTimer.Tick += OnTick;
 				m_pollTimer.Start();
 			}
 		}
@@ -549,11 +545,10 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		/// </summary>
 		/// <param name="args"></param>
 		/// <param name="sender"></param>
-		void m_pollTimer_Tick(object sender, EventArgs args)
+		private void OnTick(object sender, EventArgs args)
 		{
 			try
 			{
-				int bcvRef = -1;
 				lock (m_Synchronizer)
 				{
 					if (m_libronixApp == null)
@@ -566,7 +561,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 							LbxResourceWindowInfo windowInfo = (LbxResourceWindowInfo)window.Info;
 							if (windowInfo.ActiveDataType == "bible")
 							{
-								bcvRef = ConvertToBcv(windowInfo.ActiveReference);
+								int bcvRef = ConvertToBcv(windowInfo.ActiveReference);
 								if (bcvRef >= 0)
 								{
 									if (bcvRef != m_bcvRef)
@@ -586,11 +581,18 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 					}
 				}
 			}
+			catch (COMException)
+			{
+				// We're getting a COMException if Libronix got closed. We try to reinitialize.
+				Close();
+				Initalize();
+			}
 			catch (Exception e)
 			{
-				Debug.Fail("Got exception in m_pollTimer_Tick: " + e.Message);
+				Debug.Fail("Got exception in OnTick: " + e.Message);
 			}
 		}
+
 		/// ------------------------------------------------------------------------------------
 		/// <summary>
 		/// Closes the connection to Libronix
@@ -607,7 +609,8 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 					m_PositionChangedBridge.PositionChanged -= OnPositionChangedInLibronix;
 				}
 				m_PositionChangedBridge = null;
-				m_cookies.Clear();
+				if (m_cookies != null) 
+					m_cookies.Clear();
 				if (m_pollTimer != null)
 				{
 					m_pollTimer.Stop();
@@ -690,7 +693,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		/// easily be used in other projects. ScrReference has several dependencies as well as 
 		/// requirements for versification files etc. </developernote>
 		/// ------------------------------------------------------------------------------------
-		internal int ConvertToBcv(string reference)
+		internal static int ConvertToBcv(string reference)
 		{
 			if (reference == null)
 				return -1;
@@ -734,7 +737,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		/// easily be used in other projects. ScrReference has several dependencies as well as 
 		/// requirements for versification files etc. </developernote>
 		/// ------------------------------------------------------------------------------------
-		internal string ConvertFromBcv(int bcvRef)
+		internal static string ConvertFromBcv(int bcvRef)
 		{
 			// REVIEW: we don't check that BCV reference is valid. Should we?
 			int bookNum = bcvRef / 1000000 % 100;
@@ -758,7 +761,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		{
 			// Needs to return fast, so hold off actually moving until idle.
 			m_lastPositionArgs = e;
-			Application.Idle += new EventHandler(Application_Idle);
+			Application.Idle += Application_Idle;
 			//if (m_MarshalingControl.InvokeRequired)
 			//{
 			//    m_MarshalingControl.BeginInvoke(new PositionChangedDelegate(RaisePositionChangedEvent), 
@@ -772,7 +775,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		{
 			if (m_lastPositionArgs != null && PositionChanged != null)
 				PositionChanged(this, m_lastPositionArgs);
-			Application.Idle -= new EventHandler(Application_Idle);
+			Application.Idle -= Application_Idle;
 			m_lastPositionArgs = null;
 		}
 		#endregion
@@ -831,7 +834,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 					Debug.Assert(i < m_cookies.Count,
 						"Didn't find any Libronix resource that is able to show current position");
 
-					LbxWindowLinkSet linkSet = (LbxWindowLinkSet)m_libronixApp.WindowLinkSets[m_LinkSet];
+					LbxWindowLinkSet linkSet = m_libronixApp.WindowLinkSets[m_LinkSet];
 					if (i < m_cookies.Count && linkSet.Windows.Find(m_cookies[i].WindowInfo.Parent) >= 0)
 					{
 						bcvRef = ConvertToBcv(m_cookies[i].WindowInfo.ActiveReference);
@@ -893,21 +896,21 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 			return string.Empty;
 		}
 
-		/// ------------------------------------------------------------------------------------
-		/// <summary>
-		/// Called when a thread is about to exit.
-		/// </summary>
-		/// <param name="sender">The sender.</param>
-		/// <param name="e">The <see cref="System.EventArgs"/> instance containing the event 
-		/// data.</param>
-		/// ------------------------------------------------------------------------------------
-		private void OnThreadExit(object sender, EventArgs e)
-		{
-			if (Thread.CurrentThread.Name == "LibronixSync")
-			{
-				Close();
-			}
-		}
+		///// ------------------------------------------------------------------------------------
+		///// <summary>
+		///// Called when a thread is about to exit.
+		///// </summary>
+		///// <param name="sender">The sender.</param>
+		///// <param name="e">The <see cref="System.EventArgs"/> instance containing the event 
+		///// data.</param>
+		///// ------------------------------------------------------------------------------------
+		//private void OnThreadExit(object sender, EventArgs e)
+		//{
+		//    if (Thread.CurrentThread.Name == "LibronixSync")
+		//    {
+		//        Close();
+		//    }
+		//}
 
 		#endregion
 
@@ -990,7 +993,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 					if (m_libronixApp == null)
 						return;
 
-					LbxWindowLinkSet linkSet = (LbxWindowLinkSet)m_libronixApp.WindowLinkSets[m_LinkSet];
+					LbxWindowLinkSet linkSet = m_libronixApp.WindowLinkSets[m_LinkSet];
 					LbxWindows windows = m_libronixApp.Application.Windows;
 					foreach (LbxWindow window in windows)
 					{
@@ -1020,6 +1023,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 			}
 		}
 
+/*
 		/// ------------------------------------------------------------------------------------
 		/// <summary>
 		/// Starts this thread.
@@ -1042,6 +1046,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 			// Start a message loop and wait for any event that Libronix sends us
 			Application.Run();
 		}
+*/
 
 		/// ------------------------------------------------------------------------------------
 		/// <summary>

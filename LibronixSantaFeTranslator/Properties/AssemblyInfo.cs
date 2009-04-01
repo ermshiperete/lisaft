@@ -6,11 +6,11 @@ using System.Runtime.InteropServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("Libronix Santa Fe Translator")]
-[assembly: AssemblyDescription("Translates Libronix sync messages to Santa Fe format")]
+[assembly: AssemblyDescription("Translates Libronix sync messages to and from Santa Fe format")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Eberhard Beilharz")]
 [assembly: AssemblyProduct("LiSaFT")]
-[assembly: AssemblyCopyright("Copyright © Eberhard Beilharz 2007")]
+[assembly: AssemblyCopyright("Copyright © Eberhard Beilharz 2007-2009")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -29,5 +29,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]
+[assembly: AssemblyVersion("2.0.0.0")]
+[assembly: AssemblyFileVersion("2.0.0.0")]

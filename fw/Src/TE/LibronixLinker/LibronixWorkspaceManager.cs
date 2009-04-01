@@ -1,12 +1,9 @@
 using System;
-using System.Collections.Generic;
-using System.Text;
-using LibronixDLS;
-using System.Runtime.InteropServices;
-using System.Reflection;
-using System.IO;
-using System.Windows.Forms;
 using System.ComponentModel;
+using System.IO;
+using System.Runtime.InteropServices;
+using System.Windows.Forms;
+using LibronixDLS;
 
 namespace SIL.FieldWorks.TE.LibronixLinker
 {
@@ -29,6 +26,9 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 					return;
 
 				LbxApplication libronixApp = libApp as LbxApplication;
+				if (libronixApp == null)
+					return;
+
 				object document = libronixApp.MSXML.CreateDocument(0);
 				//MSXML2.DOMDocument40 doc = new MSXML2.DOMDocument40();
 				//doc.
@@ -53,8 +53,8 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		public static void RestoreIfNotRunning(string path)
 		{
 			BackgroundWorker worker = new BackgroundWorker();
-			worker.DoWork += new DoWorkEventHandler(worker_DoWork);
-			worker.RunWorkerCompleted += new RunWorkerCompletedEventHandler(worker_RunWorkerCompleted);
+			worker.DoWork += worker_DoWork;
+			worker.RunWorkerCompleted += worker_RunWorkerCompleted;
 			worker.RunWorkerAsync(path);
 		}
 
@@ -64,7 +64,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 				MessageBox.Show(e.Error.Message);
 		}
 
-		static void DoTheRestore(string path)
+		private static void DoTheRestore(string path)
 		{
 			LbxApplication libronixApp = null;
 			try

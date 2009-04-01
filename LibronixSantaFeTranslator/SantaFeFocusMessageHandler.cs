@@ -19,6 +19,7 @@ using System.Collections.Generic;
 using System.Text;
 using Microsoft.Win32;
 using System.Runtime.InteropServices;
+using System.Windows.Forms;
 
 namespace LibronixSantaFeTranslator
 {
@@ -65,7 +66,7 @@ namespace LibronixSantaFeTranslator
 		/// <summary>
 		/// The Windows message used for synchronized scrolling (must match SanatFe spec)
 		/// </summary>
-		private static int s_FocusMsg = (int)RegisterWindowMessage("SantaFeFocus");
+		private static readonly int s_FocusMsg = (int)RegisterWindowMessage("SantaFeFocus");
 
 		/// ------------------------------------------------------------------------------------
 		/// <summary>
@@ -79,5 +80,30 @@ namespace LibronixSantaFeTranslator
 			PostMessage(new IntPtr(-1), s_FocusMsg, (uint)FocusTypes.ScriptureReferenceFocus, 0);
 		}
 
+		/// ------------------------------------------------------------------------------------
+		/// <summary>
+		/// Receives the focus message.
+		/// </summary>
+		/// <param name="msg">The message.</param>
+		/// <returns>The string representation of the reference (e.g. MAT 1:1)</returns>
+		/// ------------------------------------------------------------------------------------
+		public static string ReceiveFocusMessage(Message msg)
+		{
+			int focusType = msg.WParam.ToInt32();
+			if (focusType != (int)FocusTypes.ScriptureReferenceFocus)
+				return string.Empty;
+
+			return s_SantaFeRefKey.GetValue(null).ToString();
+		}
+
+		/// ------------------------------------------------------------------------------------
+		/// <summary>
+		/// Gets the focus message.
+		/// </summary>
+		/// ------------------------------------------------------------------------------------
+		public static int FocusMsg
+		{
+			get { return s_FocusMsg; }
+		}
 	}
 }
