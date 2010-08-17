@@ -5,6 +5,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LiSaFT", "LibronixSantaFeTr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LibronixLinker", "fw\Src\TE\LibronixLinker\LibronixLinker.csproj", "{BFE8A8E4-4270-42F7-98A1-3B966CB8FA8E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LibronixLinkerTests", "fw\Src\TE\LibronixLinker\LibronixLinkerTests\LibronixLinkerTests.csproj", "{BA5945DD-5BF7-4DD9-8221-DDAA979F53AB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -19,6 +21,10 @@ Global
 		{BFE8A8E4-4270-42F7-98A1-3B966CB8FA8E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BFE8A8E4-4270-42F7-98A1-3B966CB8FA8E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BFE8A8E4-4270-42F7-98A1-3B966CB8FA8E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BA5945DD-5BF7-4DD9-8221-DDAA979F53AB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BA5945DD-5BF7-4DD9-8221-DDAA979F53AB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BA5945DD-5BF7-4DD9-8221-DDAA979F53AB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BA5945DD-5BF7-4DD9-8221-DDAA979F53AB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
