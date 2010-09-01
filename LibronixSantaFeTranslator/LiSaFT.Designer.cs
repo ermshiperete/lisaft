@@ -1,3 +1,4 @@
+using SIL.FieldWorks.TE.LibronixLinker;
 namespace LibronixSantaFeTranslator
 {
 	partial class LiSaFT

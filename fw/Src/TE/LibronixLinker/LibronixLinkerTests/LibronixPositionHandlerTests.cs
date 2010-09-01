@@ -20,7 +20,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 {
 	/// ----------------------------------------------------------------------------------------
 	/// <summary>
-	/// Tests methods of the LibronixLinker class
+	/// Tests the ConvertFrom/ToBcv methods of the LibronixPositionHandler class
 	/// </summary>
 	/// ----------------------------------------------------------------------------------------
 	[TestFixture]
@@ -37,7 +37,11 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		[TestFixtureSetUp]
 		public void FixtureSetup()
 		{
-			m_LibronixPositionHandler = new LibronixPositionHandler();
+			LogosPositionHandlerFactory.ResetFactories();
+			LogosPositionHandlerFactory.AddFactory(
+				new LibronixPositionHandlerFactoryDouble {LibronixIsInstalled = true});
+			m_LibronixPositionHandler = 
+				LogosPositionHandlerFactory.CreateInstance(true, 0, false) as LibronixPositionHandler;
 		}
 
 		/// ------------------------------------------------------------------------------------
@@ -131,6 +135,29 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		{
 			Assert.AreEqual("bible.61.1.1", LibronixPositionHandler.ConvertFromBcv(40001001));
 			Assert.AreEqual("bible.87.1.1", LibronixPositionHandler.ConvertFromBcv(66001001));
+		}
+
+		/// ------------------------------------------------------------------------------------
+		/// <summary>
+		/// Tests receiving references from Libronix
+		/// </summary>
+		/// ------------------------------------------------------------------------------------
+		[Test]
+		public void ReceiveReference()
+		{
+			Assert.AreEqual(001002003, ((LibronixPositionHandlerDouble)m_LibronixPositionHandler).CallOnTick());
+		}
+
+		/// ------------------------------------------------------------------------------------
+		/// <summary>
+		/// Tests sending references to Libronix
+		/// </summary>
+		/// ------------------------------------------------------------------------------------
+		[Test]
+		public void SendReference()
+		{
+			m_LibronixPositionHandler.SetReference(005004003);
+			Assert.AreEqual("bible.5.4.3", LbxResourceWindowInfoDouble.Reference);
 		}
 	}
 }

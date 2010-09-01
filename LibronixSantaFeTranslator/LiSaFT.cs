@@ -14,7 +14,7 @@ namespace LibronixSantaFeTranslator
 	/// ----------------------------------------------------------------------------------------
 	public partial class LiSaFT : Form
 	{
-		private LibronixPositionHandler m_positionHandler;
+		private ILogosPositionHandler m_positionHandler;
 		private int m_lastBBCCCVVV;
 
 		/// ------------------------------------------------------------------------------------
@@ -24,6 +24,7 @@ namespace LibronixSantaFeTranslator
 		/// ------------------------------------------------------------------------------------
 		public LiSaFT()
 		{
+			LogosPositionHandlerFactory.Created += OnLogosPositionHandlerCreated;
 			InitializeComponent();
 
 			try
@@ -54,9 +55,21 @@ namespace LibronixSantaFeTranslator
 			if (m_positionHandler != null)
 				return;
 
-			m_positionHandler = LibronixPositionHandler.CreateInstance(
+			m_positionHandler = LogosPositionHandlerFactory.CreateInstance(
 				Properties.Settings.Default.StartLibronix, Properties.Settings.Default.LinkSet, 
 				true);
+			if (m_positionHandler != null)
+				OnLogosPositionHandlerCreated(null, new CreatedEventArgs { PositionHandler = m_positionHandler});
+		}
+
+		/// ------------------------------------------------------------------------------------
+		/// <summary>
+		/// Called when the logos position handler got created.
+		/// </summary>
+		/// ------------------------------------------------------------------------------------
+		private void OnLogosPositionHandlerCreated(object sender, CreatedEventArgs e)
+		{
+			m_positionHandler = e.PositionHandler;
 			m_positionHandler.PositionChanged += OnPositionInLibronixChanged;
 
 			// Add all Libronix link sets to the combo box.
@@ -67,8 +80,8 @@ namespace LibronixSantaFeTranslator
 					m_LinkSetCombo.Items.Add(linkSet);
 			}
 
-			m_LinkSetCombo.SelectedIndex = 
-				Properties.Settings.Default.LinkSet >= m_LinkSetCombo.Items.Count ? 0 : 
+			m_LinkSetCombo.SelectedIndex =
+				Properties.Settings.Default.LinkSet >= m_LinkSetCombo.Items.Count ? 0 :
 				Properties.Settings.Default.LinkSet;
 		}
 
@@ -130,7 +143,7 @@ namespace LibronixSantaFeTranslator
 		private void OnPositionInSantaFeChanged(object sender, PositionChangedEventArgs e)
 		{
 			if (m_positionHandler != null)
-				m_positionHandler.SetLibronixFocus(e.BcvRef);
+				m_positionHandler.SetReference(e.BcvRef);
 		}
 
 		/// ------------------------------------------------------------------------------------

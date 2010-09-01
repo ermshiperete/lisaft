@@ -35,6 +35,7 @@
     <UpgradeBackupLocation>
     </UpgradeBackupLocation>
     <OldToolsVersion>3.5</OldToolsVersion>
+    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <OutputPath>..\..\..\Output\Debug\</OutputPath>
@@ -105,6 +106,9 @@
     <Reference Include="System">
       <Name>System</Name>
     </Reference>
+    <Reference Include="System.Core">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
     <Reference Include="System.Data" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
@@ -116,8 +120,26 @@
     <Compile Include="GeneratedAssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="ILogosPositionHandlerFactory.cs" />
+    <Compile Include="ILogosPositionHandler.cs" />
+    <Compile Include="ILogosPositionHandlerInternal.cs" />
     <Compile Include="LibronixPositionHandler.cs" />
+    <Compile Include="LibronixPositionHandlerFactory.cs" />
     <Compile Include="LibronixWorkspaceManager.cs" />
+    <Compile Include="Logos4BibleBooks.cs" />
+    <Compile Include="Logos4PositionHandler.cs" />
+    <Compile Include="Logos4PositionHandlerFactory.cs" />
+    <Compile Include="LogosPositionHandlerFactory.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <COMReference Include="Logos4Lib">
+      <Guid>{81490292-5570-4D02-A2AC-7B828DBD0A8A}</Guid>
+      <VersionMajor>1</VersionMajor>
+      <VersionMinor>0</VersionMinor>
+      <Lcid>0</Lcid>
+      <WrapperTool>tlbimp</WrapperTool>
+      <Isolated>False</Isolated>
+    </COMReference>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

@@ -14,6 +14,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using LibronixDLS;
@@ -123,7 +124,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 	/// use lock statements!</para>
 	/// </developernote>
 	/// ----------------------------------------------------------------------------------------
-	public class LibronixPositionHandler: IDisposable
+	public class LibronixPositionHandler: IDisposable, ILogosPositionHandler, ILogosPositionHandlerInternal
 	{
 		#region LinkInfo struct
 		/// <summary></summary>
@@ -159,13 +160,6 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		//private delegate void PositionChangedDelegate(PositionChangedEventArgs e);
 
 		#region Member variables
-		/// <summary>Set to <c>true</c> if we know for sure that Libronix isn't installed. If set
-		/// to <c>false</c> it might be installed (but Libronix not running), or we haven't tried
-		/// yet.</summary>
-		private static volatile bool s_fNotInstalled;
-		/// <summary>A list of LibronixPositionHandler instances based on the link set.</summary>
-		private static volatile Dictionary<int, LibronixPositionHandler> s_Instances =
-			new Dictionary<int, LibronixPositionHandler>();
 		/// <summary>Reference counter for this instance. We have only one instance per link set.
 		/// If the reference counter goes to 0 we delete the object.</summary>
 		private volatile int m_ReferenceCount;
@@ -179,8 +173,6 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		/// in the Dispose(bool) method which might result in dead locks!
 		/// </remarks>
 		private readonly object m_Synchronizer = new object();
-		/// <summary>Timer that we use to check if Libronix got started</summary>
-		private System.Windows.Forms.Timer m_timer;
 
 		private LbxApplication m_libronixApp;
 		private LbxResourcePositionChangedBridge m_PositionChangedBridge;
@@ -190,13 +182,13 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 
 		/// <summary>The link set which we want to use</summary>
 		private volatile int m_LinkSet;
-		/// <summary><c>true</c> if we should try to start Libronix in case it's not running.</summary>
-		private readonly bool m_fStart;
 		/// <summary><c>true</c> if we are in the middle of sending or receiving a sync message</summary>
 		private bool m_fProcessingMessage;
 
-		// Timer used to poll Libronix for current references.
-		private System.Windows.Forms.Timer m_pollTimer;
+		private bool m_fLogosAppQuit;
+
+		/// <summary>Timer used to poll Libronix for current references.</summary>
+		protected Timer m_pollTimer;
 		// Reference most recently retrieved from Libronix (-1 if none)
 		private int m_bcvRef = -1;
 
@@ -210,6 +202,8 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		/// why we assign a do-nothing event handler.</developernote>
 		public event EventHandler<PositionChangedEventArgs> PositionChanged = delegate { };
 
+		private event EventHandler<DisposedEventArgs> DisposedEvent;
+
 		private PositionChangedEventArgs m_lastPositionArgs; // set by Libronix, used in onIdle
 		#endregion
 
@@ -218,94 +212,23 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		/// <summary>
 		/// Initializes a new instance of the <see cref="LibronixPositionHandler"/> class.
 		/// </summary>
-		/// <remarks>Use this version in unit tests only!</remarks>
-		/// ------------------------------------------------------------------------------------
-		internal LibronixPositionHandler()
-		{
-		}
-
-		/// ------------------------------------------------------------------------------------
-		/// <summary>
-		/// Initializes a new instance of the <see cref="LibronixPositionHandler"/> class.
-		/// </summary>
-		/// <param name="fStart"><c>true</c> to start Libronix if it isn't running, otherwise
-		/// <c>false</c>.</param>
 		/// <param name="linkSet">The 0-based index of the link set in Libronix.</param>
-		/// 
-		/// <exception cref="LibronixNotRunningException">Thrown if Libronix is installed but
-		/// not currently running and <paramref name="fStart"/> is <c>false</c>.</exception>
-		/// <exception cref="LibronixNotInstalledException">Thrown if Libronix is not installed
-		/// on this machine.</exception>
-		/// 
-		/// <developernote>This method is called on the main thread</developernote>
+		/// <param name="libronixApp">The Libronix application</param>
 		/// ------------------------------------------------------------------------------------
-		private LibronixPositionHandler(bool fStart, int linkSet)
+		internal LibronixPositionHandler(int linkSet, LbxApplication libronixApp)
 		{
 			m_LinkSet = linkSet;
-			m_fStart = fStart;
 			m_MarshalingControl = new Control();
 			m_MarshalingControl.CreateControl();
+
+			Initialize(libronixApp);
 		}
 
-		/// ------------------------------------------------------------------------------------
-		/// <summary>
-		/// Creates an instance of the <see cref="LibronixPositionHandler"/> class.
-		/// </summary>
-		/// <param name="fStart"><c>true</c> to start Libronix if it isn't running, otherwise
-		/// <c>false</c>.</param>
-		/// <param name="linkSet">The 0-based index of the link set in Libronix.</param>
-		/// <param name="fThrowNotRunningException"><c>true</c> to throw not running exception</param>
-		/// <returns>
-		/// An instance of the <see cref="LibronixPositionHandler"/> class.
-		/// </returns>
-		/// <exception cref="LibronixNotRunningException">Thrown if Libronix is installed but
-		/// not currently running and <paramref name="fStart"/> is <c>false</c>.</exception>
-		/// <exception cref="LibronixNotInstalledException">Thrown if Libronix is not installed
-		/// on this machine.</exception>
-		/// <developernote>This method is called on the main thread</developernote>
-		/// ------------------------------------------------------------------------------------
-		public static LibronixPositionHandler CreateInstance(bool fStart, int linkSet, 
-			bool fThrowNotRunningException)
-		{
-			if (IsNotInstalled)
-				throw new LibronixNotInstalledException("Libronix isn't installed", null);
-
-			if (!s_Instances.ContainsKey(linkSet))
-			{
-				lock (typeof(LibronixPositionHandler))
-				{
-					// We have to check again. It's possible that another thread was in the 
-					// middle of creating an instance while we were waiting for the lock.
-					if (!s_Instances.ContainsKey(linkSet))
-					{
-						LibronixPositionHandler newHandler = 
-							new LibronixPositionHandler(fStart, linkSet);
-						try
-						{
-							newHandler.StartLibronixThread(fThrowNotRunningException);
-						}
-						catch (LibronixNotInstalledException)
-						{
-							newHandler.Dispose();
-							throw;
-						}
-						catch (LibronixNotRunningException)
-						{
-							newHandler.Dispose();
-							throw;
-						}
-						s_Instances.Add(linkSet, newHandler);
-					}
-				}
-			}
-			LibronixPositionHandler handler = s_Instances[linkSet];
-			handler.m_ReferenceCount++;
-			return handler;
-		}
 		#endregion
 
 		#region Dispose related methods
 		#if DEBUG
+		internal int m_instance;
 		/// ------------------------------------------------------------------------------------
 		/// <summary>
 		/// Releases unmanaged resources and performs other cleanup operations before the
@@ -320,7 +243,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		/// ------------------------------------------------------------------------------------
 		~LibronixPositionHandler()
 		{
-			Debug.Fail("Not disposed: " + GetType().Name);
+			Debug.Fail("Not disposed: " + GetType().Name + "; instance: " + m_instance);
 		}
 		#endif
 
@@ -332,9 +255,11 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		/// ------------------------------------------------------------------------------------
 		public void Dispose()
 		{
-			m_ReferenceCount--;
-			if (m_ReferenceCount > 0)
+			if (((ILogosPositionHandlerInternal)this).Release() > 0)
+			{
+				Debug.WriteLine("Dispose called, but having still " + m_ReferenceCount + " references");
 				return;
+			}
 
 			if (!m_fDisposed)
 			{
@@ -346,6 +271,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 					if (!m_fDisposed)
 					{
 						Dispose(true);
+
 						GC.SuppressFinalize(this);
 					}
 				}
@@ -366,19 +292,14 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		/// <see href="http://code.logos.com/blog/2008/02/the_dispose_pattern.html"/>
 		/// </developernote>
 		/// ------------------------------------------------------------------------------------
-		private void Dispose(bool fDisposeManagedObjs)
+		protected virtual void Dispose(bool fDisposeManagedObjs)
 		{
 			if (fDisposeManagedObjs)
 			{
+				Debug.WriteLine("Disposing: " + m_instance);
 				Close();
-				if (!m_fDisposed)
-					s_Instances.Remove(m_LinkSet);
 
-				if (m_timer != null)
-				{
-					m_timer.Stop();
-					m_timer.Dispose();
-				}
+				RaiseDisposedEvent();
 
 				if (m_pollTimer != null)
 				{
@@ -388,121 +309,40 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 
 				if (m_MarshalingControl != null)
 					m_MarshalingControl.Dispose();
-
-				//Application.ThreadExit -= OnThreadExit;
 			}
 
 			m_cookies = null;
-			m_timer = null;
 			m_pollTimer = null;
 			m_MarshalingControl = null;
 
 			m_fDisposed = true;
+		}
+
+		private void RaiseDisposedEvent()
+		{
+			if (m_MarshalingControl.InvokeRequired)
+				m_MarshalingControl.BeginInvoke((MethodInvoker)RaiseDisposedEvent);
+			else if (DisposedEvent != null)
+				DisposedEvent(this, new DisposedEventArgs(m_LinkSet, m_fLogosAppQuit));
 		}
 		#endregion
 
 		#region Private methods and properties
 		/// ------------------------------------------------------------------------------------
 		/// <summary>
-		/// Originaly started the thread that communicates with Libronix. Keeping most of the
-		/// architecture in case we go back. For now, it just initializes the objects we use
-		/// to communicate with Libronix.
-		/// </summary>
-		/// <param name="fThrowNotRunningException"><c>true</c> to throw not running exception
-		/// </param>
-		/// <developernote>Called on main thread</developernote>
-		/// ------------------------------------------------------------------------------------
-		private void StartLibronixThread(bool fThrowNotRunningException)
-		{
-			if (s_fNotInstalled)
-				return;
-
-			//Application.ThreadExit += OnThreadExit;
-			//Thread thread = new Thread(Start);
-			//thread.IsBackground = true;
-			//thread.SetApartmentState(ApartmentState.STA);
-			//thread.Name = "LibronixSync";
-
-			//EventWaitHandle waitHandle = new EventWaitHandle(false, EventResetMode.AutoReset);
-			//thread.Start(waitHandle);
-			//waitHandle.WaitOne(5000, false);
-			Initalize();
-
-			lock (m_Synchronizer)
-			{
-				if (m_libronixApp == null)
-				{
-					if (IsNotInstalled)
-						throw new LibronixNotInstalledException("Libronix isn't installed", null);
-					if (fThrowNotRunningException)
-						throw new LibronixNotRunningException("Libronix isn't running", null);
-				}
-			}
-		}
-
-		/// ------------------------------------------------------------------------------------
-		/// <summary>
-		/// Initalizes the Libronix COM objects.
+		/// Initializes the Libronix COM objects.
 		/// </summary>
 		/// ------------------------------------------------------------------------------------
-		private void Initalize()
+		internal void Initialize(LbxApplication libApp)
 		{
-			try
-			{
-				// If Libronix isn't running, we'll get an exception here
-				object libApp = Marshal.GetActiveObject("LibronixDLS.LbxApplication");
-
-				m_libronixApp = libApp as LbxApplication;
-			}
-			catch (COMException e)
-			{
-				if ((uint)e.ErrorCode == 0x800401E3) // MK_E_UNAVAILABLE
-				{
-					if (m_fStart)
-					{
-						try
-						{
-							// try to start
-							m_libronixApp = new LbxApplicationClass { Visible = true };
-						}
-						catch (Exception e1)
-						{
-							Debug.Fail("Got exception in Initialize trying to start Libronix: " + e1.Message);
-							m_libronixApp = null;
-							s_fNotInstalled = true;
-						}
-					}
-					else
-					{
-						m_libronixApp = null;
-						StartTimer();
-					}
-				}
-				else
-					s_fNotInstalled = true;
-			}
-			catch (Exception e)
-			{
-				Debug.Fail("Got exception in Initialize trying to get running Libronix object: " + e.Message);
-			}
+			m_libronixApp = libApp;
 			if (m_libronixApp == null)
 				return;
 
-			// The commented-out lines are necessary to receive sync messages from Libronix, but currently
-			// they cause a crash (in release builds only! beware!).
-			// We may be able to create this object in a separate AppDomain. This has not yet been tried.
-			// Various and confusing error messages come up and exceptions get thrown within the method.
-			// (See TE-6457.) If we don't otherwise get a fix, it may be worth anothe try when we upgrade
-			// to the next version of ICU, because the problem is something to do with not being able
-			// to find an ICU method...possibly some of Libronix's marshalling code is messed up by our
-			// version of ICU??
 			m_PositionChangedBridge = null;
 			StartPollTimer();
-			//m_PositionChangedBridge = new LbxResourcePositionChangedBridgeClass();
-			//m_PositionChangedBridge.PositionChanged +=
-			//    new DLbxResourcePositionChanged_PositionChangedEventHandler(OnPositionChangedInLibronix);
 
-			m_ApplicationEventsBridge = new LbxApplicationEventsBridgeClass();
+			m_ApplicationEventsBridge = CreateLbxApplicationEventsBridge();
 			m_ApplicationEventsBridge.EventFired += OnApplicationEventsBridgeEventFired;
 			m_ApplicationEventsCookie = m_ApplicationEventsBridge.Connect(m_libronixApp);
 
@@ -511,17 +351,13 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 
 		/// ------------------------------------------------------------------------------------
 		/// <summary>
-		/// Starts the timer that checks if Libronix gets started
+		/// Creates the LbxApplicationEventsBridge object.
 		/// </summary>
+		/// <returns></returns>
 		/// ------------------------------------------------------------------------------------
-		private void StartTimer()
+		protected virtual LbxApplicationEventsBridge CreateLbxApplicationEventsBridge()
 		{
-			if (m_timer == null)
-			{
-				m_timer = new System.Windows.Forms.Timer { Interval = 1000 };
-				m_timer.Tick += OnTimer;
-				m_timer.Start();
-			}
+			return new LbxApplicationEventsBridgeClass();
 		}
 
 		/// ------------------------------------------------------------------------------------
@@ -529,11 +365,11 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		/// Starts the timer that is used to poll Libronix for changing references.
 		/// </summary>
 		/// ------------------------------------------------------------------------------------
-		private void StartPollTimer()
+		protected virtual void StartPollTimer()
 		{
 			if (m_pollTimer == null)
 			{
-				m_pollTimer = new System.Windows.Forms.Timer {Interval = 1000};
+				m_pollTimer = new Timer {Interval = 1000};
 				m_pollTimer.Tick += OnTick;
 				m_pollTimer.Start();
 			}
@@ -545,7 +381,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		/// </summary>
 		/// <param name="args"></param>
 		/// <param name="sender"></param>
-		private void OnTick(object sender, EventArgs args)
+		protected void OnTick(object sender, EventArgs args)
 		{
 			try
 			{
@@ -558,7 +394,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 					{
 						if (window.Type == "resource")
 						{
-							LbxResourceWindowInfo windowInfo = (LbxResourceWindowInfo)window.Info;
+							var windowInfo = (LbxResourceWindowInfo)window.Info;
 							if (windowInfo.ActiveDataType == "bible")
 							{
 								int bcvRef = ConvertToBcv(windowInfo.ActiveReference);
@@ -585,7 +421,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 			{
 				// We're getting a COMException if Libronix got closed. We try to reinitialize.
 				Close();
-				Initalize();
+				// TODO: Initialize();
 			}
 			catch (Exception e)
 			{
@@ -650,14 +486,13 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 				{
 					if (window.Type == "resource")
 					{
-						LbxResourceWindowInfo windowInfo = (LbxResourceWindowInfo)window.Info;
+						var windowInfo = (LbxResourceWindowInfo)window.Info;
 						if (windowInfo.ActiveDataType == "bible")
 						{
 							int cookie = m_PositionChangedBridge.Connect(windowInfo);
-							LbxResourceView view = (LbxResourceView)window.View;
-							LbxResource resource = (LbxResource)view.Resource;
-							LbxResourcePositions positions =
-								(LbxResourcePositions)resource.get_Positions(null);
+							var view = (LbxResourceView)window.View;
+							var resource = (LbxResource)view.Resource;
+							var positions = (LbxResourcePositions)resource.get_Positions(null);
 							m_cookies.Add(new LinkInfo(windowInfo, cookie, positions));
 						}
 					}
@@ -665,8 +500,8 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 			}
 			catch (COMException e)
 			{
-				Debug.Fail("Got exception in LibronixPositionHandler.SetupPositionEvents: " + e.Message);
 				m_libronixApp = null;
+				Debug.Fail("Got exception in LibronixPositionHandler.SetupPositionEvents: " + e.Message);
 			}
 		}
 
@@ -757,7 +592,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		/// <param name="e">The <see cref="SIL.FieldWorks.TE.LibronixLinker.PositionChangedEventArgs"/>
 		/// instance containing the event data.</param>
 		/// ------------------------------------------------------------------------------------
-		private void RaisePositionChangedEvent(PositionChangedEventArgs e)
+		protected virtual void RaisePositionChangedEvent(PositionChangedEventArgs e)
 		{
 			// Needs to return fast, so hold off actually moving until idle.
 			m_lastPositionArgs = e;
@@ -771,7 +606,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 			//    PositionChanged(this, e);
 		}
 
-		void Application_Idle(object sender, EventArgs e)
+		private void Application_Idle(object sender, EventArgs e)
 		{
 			if (m_lastPositionArgs != null && PositionChanged != null)
 				PositionChanged(this, m_lastPositionArgs);
@@ -783,35 +618,15 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		#region Event handler
 		/// ------------------------------------------------------------------------------------
 		/// <summary>
-		/// Called from the timer. We have to check if Libronix got started in the mean time.
-		/// </summary>
-		/// <param name="sender">The sender.</param>
-		/// <param name="e">The <see cref="System.EventArgs"/> instance containing the event data.</param>
-		/// <developernote>This gets called on the Libronix thread.</developernote>
-		/// ------------------------------------------------------------------------------------
-		private void OnTimer(object sender, EventArgs e)
-		{
-			if (Process.GetProcessesByName("LDLS").Length > 0)
-			{
-				// Libronix got started!
-				m_timer.Stop();
-				m_timer.Dispose();
-				m_timer = null;
-				Initalize();
-			}
-		}
-
-		/// ------------------------------------------------------------------------------------
-		/// <summary>
 		/// Called when the position in Libronix changed.
 		/// </summary>
 		/// <param name="position">The position.</param>
 		/// <param name="reference">The reference.</param>
 		/// <param name="significance">The significance.</param>
-		/// <param name="navigationID">The navigation ID.</param>
+		/// <param name="navigationId">The navigation ID.</param>
 		/// ------------------------------------------------------------------------------------
 		private void OnPositionChangedInLibronix(string position, string reference, int significance,
-			string navigationID)
+			string navigationId)
 		{
 			if (m_fProcessingMessage)
 				return;
@@ -882,7 +697,8 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 				{
 					// Libronix is closing - stop using it, but start checking for new instance
 					Close();
-					StartTimer();
+					m_fLogosAppQuit = true;
+					Dispose();
 				}
 			}
 			catch (Exception e)
@@ -925,15 +741,15 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		{
 			get
 			{
-				List<string> linkSets = new List<string>();
+				var linkSets = new List<string>();
 
 				lock (m_Synchronizer)
 				{
 					if (m_libronixApp != null)
 					{
 						// Add all Libronix link sets to the list
-						foreach (LbxWindowLinkSet linkSet in m_libronixApp.WindowLinkSets)
-							linkSets.Add(linkSet.Title.Replace("&", ""));
+						linkSets.AddRange(from LbxWindowLinkSet linkSet in m_libronixApp.WindowLinkSets
+						                  select linkSet.Title.Replace("&", ""));
 					}
 				}
 
@@ -978,7 +794,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		/// <param name="bcvRef">The reference in BBCCCVVV format.</param>
 		/// <developernote>This method is called on the main thread</developernote>
 		/// ------------------------------------------------------------------------------------
-		public void SetLibronixFocus(int bcvRef)
+		public void SetReference(int bcvRef)
 		{
 			if (m_fProcessingMessage)
 				return;
@@ -1048,19 +864,30 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		}
 */
 
-		/// ------------------------------------------------------------------------------------
-		/// <summary>
-		/// Gets or sets a value indicating whether Libronix is not installed.
-		/// </summary>
-		/// <value>Set to <c>true</c> if we know for sure that Libronix isn't installed. If set
-		/// to <c>false</c> it might be installed (but Libronix not running), or we haven't tried
-		/// starting it yet.</value>
-		/// ------------------------------------------------------------------------------------
-		public static bool IsNotInstalled
+		#endregion
+
+		#region IRefCount Members
+
+		void ILogosPositionHandlerInternal.AddRef()
 		{
-			get { return s_fNotInstalled; }
-			internal set { s_fNotInstalled = value; }
+			m_ReferenceCount++;
 		}
+
+		int ILogosPositionHandlerInternal.Release()
+		{
+			m_ReferenceCount--;
+			return m_ReferenceCount;
+		}
+
+		/// <summary>
+		/// Fired when the object gets disposed.
+		/// </summary>
+		event EventHandler<DisposedEventArgs> ILogosPositionHandlerInternal.Disposed
+		{
+			add { DisposedEvent += value; }
+			remove { DisposedEvent -= value; }
+		}
+
 		#endregion
 	}
 }

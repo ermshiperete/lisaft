@@ -63,11 +63,25 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Interop.LibronixDLS, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\DistFiles\Interop.LibronixDLS.dll</HintPath>
+    </Reference>
+    <Reference Include="Interop.LibronixDLSUtility, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\DistFiles\Interop.LibronixDLSUtility.dll</HintPath>
+    </Reference>
+    <Reference Include="Interop.Utility, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\DistFiles\Interop.Utility.dll</HintPath>
+    </Reference>
+    <Reference Include="stdole, Version=7.0.3300.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
     <Reference Include="System" />
     <Reference Include="System.Core">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
     <Reference Include="System.Data" />
+    <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
     <Reference Include="nunit.framework">
       <Name>nunit.framework</Name>
@@ -76,7 +90,24 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <Compile Include="LibronixDoubles\LibronixDLSDouble.cs" />
+    <Compile Include="LibronixDoubles\LibronixDLSUtilityDouble.cs" />
+    <Compile Include="LibronixDoubles\LibronixPositionHandlerDouble.cs" />
+    <Compile Include="LibronixDoubles\LibronixPositionHandlerFactoryDouble.cs" />
     <Compile Include="LibronixPositionHandlerTests.cs" />
+    <Compile Include="Logos4Doubles\Logos4BibleBooksDouble.cs" />
+    <Compile Include="Logos4Doubles\Logos4PositionHandlerDouble.cs" />
+    <Compile Include="Logos4Doubles\Logos4PositionHandlerFactoryDouble.cs" />
+    <Compile Include="Logos4Doubles\LogosApplicationDouble.cs" />
+    <Compile Include="Logos4Doubles\LogosBibleReferenceDetailsDouble.cs" />
+    <Compile Include="Logos4Doubles\LogosCollectionDouble.cs" />
+    <Compile Include="Logos4Doubles\LogosDataTypeDouble.cs" />
+    <Compile Include="Logos4Doubles\LogosDataTypeReferenceDouble.cs" />
+    <Compile Include="Logos4Doubles\LogosNavigationRequestDouble.cs" />
+    <Compile Include="Logos4Doubles\LogosPanelDouble.cs" />
+    <Compile Include="Logos4Doubles\LogosReferenceOrHeadwordDouble.cs" />
+    <Compile Include="Logos4PositionHandlerTests.cs" />
+    <Compile Include="LogosPositionHandlerFactoryTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include="Microsoft.Net.Framework.2.0">
@@ -100,6 +131,16 @@
       <Project>{BFE8A8E4-4270-42F7-98A1-3B966CB8FA8E}</Project>
       <Name>LibronixLinker</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <COMReference Include="Logos4Lib">
+      <Guid>{81490292-5570-4D02-A2AC-7B828DBD0A8A}</Guid>
+      <VersionMajor>1</VersionMajor>
+      <VersionMinor>0</VersionMinor>
+      <Lcid>0</Lcid>
+      <WrapperTool>tlbimp</WrapperTool>
+      <Isolated>False</Isolated>
+    </COMReference>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
