@@ -44,5 +44,11 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 			OnTick(null, EventArgs.Empty);
 			return m_eventArgs.BcvRef;
 		}
+
+		public override void SetReference(int bcvRef)
+		{
+			base.SetReference(bcvRef);
+			Console.WriteLine("Reference in Double is {0}", LbxResourceWindowInfoDouble.Reference);
+		}
 	}
 }

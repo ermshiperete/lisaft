@@ -996,12 +996,12 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 
 		public int Count
 		{
-			get { throw new NotImplementedException(); }
+			get { return m_Windows.Count; }
 		}
 
-		public DILbxWindow this[object Index]
+		public DILbxWindow this[object index]
 		{
-			get { throw new NotImplementedException(); }
+			get { return m_Windows[(int)index]; }
 		}
 
 		IEnumerator DILbxWindows.GetEnumerator()
@@ -1011,7 +1011,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 
 		private IEnumerator GetEnumerator()
 		{
-			return this;
+			return m_Windows.GetEnumerator();
 		}
 
 		public void Dispose()
@@ -1070,6 +1070,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		public static string Reference { get; set; }
 		public bool GoToReference(string reference, int minScore, int maxScore, string navigationID, object pJobCallback)
 		{
+Console.WriteLine("Setting reference to {0}", reference);
 			Reference = reference;
 			return true;
 		}
