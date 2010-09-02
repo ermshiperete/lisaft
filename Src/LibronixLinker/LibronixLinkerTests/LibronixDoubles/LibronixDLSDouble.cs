@@ -74,6 +74,36 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 			get { throw new NotImplementedException(); }
 		}
 
+		LbxParameters DILbxApplication.get_ActiveCommandParameters(int nIndex)
+		{
+			return this[nIndex];
+		}
+
+		LbxParameters DILbxApplication2.get_ActiveCommandParameters(int nIndex)
+		{
+			return this[nIndex];
+		}
+
+		LbxParameters DILbxApplication3.get_ActiveCommandParameters(int nIndex)
+		{
+			return this[nIndex];
+		}
+
+		LbxParameters DILbxApplication4.get_ActiveCommandParameters(int nIndex)
+		{
+			return this[nIndex];
+		}
+
+		LbxParameters DILbxApplication5.get_ActiveCommandParameters(int nIndex)
+		{
+			return this[nIndex];
+		}
+
+		LbxParameters DILbxApplication6.get_ActiveCommandParameters(int nIndex)
+		{
+			return this[nIndex];
+		}
+
 		public LbxApplicationEvent ActiveEvent
 		{
 			get { throw new NotImplementedException(); }
