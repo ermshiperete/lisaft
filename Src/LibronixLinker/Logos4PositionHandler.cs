@@ -173,6 +173,9 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 					if (!panel.LinkSet.StartsWith("Index:") || panel.LinkSet.Substring(6) != m_linkSet.ToString())
 						return;
 
+					if (panel.Title != m_logosApp.GetActivePanel().Title)
+						return;
+
 					var references = panel.GetCurrentReferencesAndHeadwords();
 					var dataTypeReference = references[0].Reference;
 					if (m_logosApp.ApiVersion < 2 || dataTypeReference.DetailsKind == "Bible")

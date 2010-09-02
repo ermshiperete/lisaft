@@ -51,7 +51,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker.Logos4Doubles
 
 		public string Title
 		{
-			get { throw new NotImplementedException(); }
+			get { return "My Resource"; }
 		}
 
 		#endregion

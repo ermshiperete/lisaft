@@ -43,9 +43,9 @@ using System.Runtime.InteropServices;
 //      Revision
 //
 
-[assembly: AssemblyFileVersion("3.0.0")]
-[assembly: AssemblyInformationalVersionAttribute("3.0.0")]
-[assembly: AssemblyVersion("3.0.0.*")]
+[assembly: AssemblyFileVersion("3.0.1")]
+[assembly: AssemblyInformationalVersionAttribute("3.0.1")]
+[assembly: AssemblyVersion("3.0.1.*")]
 
 //
 // In order to sign your assembly you must specify a key to use. Refer to the 

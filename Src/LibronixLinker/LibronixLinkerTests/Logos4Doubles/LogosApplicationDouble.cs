@@ -54,7 +54,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker.Logos4Doubles
 
 		public LogosPanel GetActivePanel()
 		{
-			throw new NotImplementedException();
+			return new LogosPanelDouble();
 		}
 
 		public LogosPanelCollection GetOpenPanels()
@@ -62,7 +62,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker.Logos4Doubles
 			return new LogosPanelCollectionDouble();
 		}
 
-		public LogosPanel GetPanel(string PanelId)
+		public LogosPanel GetPanel(string panelId)
 		{
 			throw new NotImplementedException();
 		}
