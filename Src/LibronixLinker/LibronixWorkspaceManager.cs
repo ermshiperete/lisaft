@@ -70,7 +70,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 			try
 			{
 				// If Libronix isn't running, we'll get an exception here
-				object libApp = Marshal.GetActiveObject("LibronixDLS.LbxApplication");
+				Marshal.GetActiveObject("LibronixDLS.LbxApplication");
 				return; // It IS running; don't disturb it.
 			}
 			catch (COMException e)

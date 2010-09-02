@@ -66,10 +66,12 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 				throw new LibronixNotInstalledException("Libronix isn't installed", null);
 			}
 
+#if !__MonoCS__
 			if (LibronixIsRunning || fStart)
 			{
 				LibronixPositionHandler = new LibronixPositionHandlerDouble(linkSet, new LbxApplicationDouble());
 			}
+#endif
 
 			return LibronixPositionHandler;
 		}

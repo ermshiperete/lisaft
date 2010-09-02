@@ -1,4 +1,5 @@
-﻿using System;
+﻿#if !__MonoCS__
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,6 +12,11 @@ using Utility;
 
 namespace SIL.FieldWorks.TE.LibronixLinker
 {
+	// not working on Linux because Libronix interop DLLs have a reference to stdole.dll
+	// which doesn't exist on Linux. Substituting IPictureDisp with our own definition
+	// doesn't work. It wouldn't accept our IPictureDisp as return parameter for
+	// LbxWindowLinkSetDouble.Image.get
+
 	#region LbxApplicationDouble
 	internal class LbxApplicationDouble: LbxApplication
 	{
@@ -66,36 +72,6 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		public DILbxPopupWindow ActiveDialogWindow
 		{
 			get { throw new NotImplementedException(); }
-		}
-
-		LbxParameters DILbxApplication.get_ActiveCommandParameters(int nIndex)
-		{
-			return get_ActiveCommandParameters(nIndex);
-		}
-
-		LbxParameters DILbxApplication2.get_ActiveCommandParameters(int nIndex)
-		{
-			return get_ActiveCommandParameters(nIndex);
-		}
-
-		LbxParameters DILbxApplication3.get_ActiveCommandParameters(int nIndex)
-		{
-			return get_ActiveCommandParameters(nIndex);
-		}
-
-		LbxParameters DILbxApplication4.get_ActiveCommandParameters(int nIndex)
-		{
-			return get_ActiveCommandParameters(nIndex);
-		}
-
-		LbxParameters DILbxApplication5.get_ActiveCommandParameters(int nIndex)
-		{
-			return get_ActiveCommandParameters(nIndex);
-		}
-
-		LbxParameters DILbxApplication6.get_ActiveCommandParameters(int nIndex)
-		{
-			return get_ActiveCommandParameters(nIndex);
 		}
 
 		public LbxApplicationEvent ActiveEvent
@@ -687,9 +663,10 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 			get { throw new NotImplementedException(); }
 		}
 
-		public Utility.LbxParameters get_ActiveCommandParameters(int nIndex)
+		[IndexerName("ActiveCommandParameters")]
+		public Utility.LbxParameters this[int nIndex]
 		{
-			throw new NotImplementedException();
+			get	{ throw new NotImplementedException(); }
 		}
 
 		public DILbxPreferences get_SystemPreferences(string Name)
@@ -1165,7 +1142,7 @@ Console.WriteLine("Setting reference to {0}", reference);
 
 	internal class LbxWindowLinkSetsDouble: LbxWindowLinkSets
 	{
-		
+
 	#region DILbxWindowLinkSets Members
 
 		public LbxWindowLinkSet  Add(string Name, string Title, IPictureDisp Picture, uint Transparent)
@@ -1267,3 +1244,4 @@ Console.WriteLine("Setting reference to {0}", reference);
 
 	#endregion
 }
+#endif

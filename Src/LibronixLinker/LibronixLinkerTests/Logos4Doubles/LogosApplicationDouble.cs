@@ -81,15 +81,36 @@ namespace SIL.FieldWorks.TE.LibronixLinker.Logos4Doubles
 
 		#region ILogosApplicationEvents_Event Members
 
-		public event ILogosApplicationEvents_ExitingEventHandler Exiting = delegate { };
+		event ILogosApplicationEvents_ExitingEventHandler ILogosApplicationEvents_Event.Exiting
+		{
+			add { }
+			remove { }
+		}
 
-		public event ILogosApplicationEvents_PanelActivatedEventHandler PanelActivated = delegate { };
+		event ILogosApplicationEvents_PanelActivatedEventHandler ILogosApplicationEvents_Event.PanelActivated
+		{
+			add { }
+			remove { }
+		}
 
-		public event ILogosApplicationEvents_PanelChangedEventHandler PanelChanged = delegate { };
+		event ILogosApplicationEvents_PanelChangedEventHandler ILogosApplicationEvents_Event.PanelChanged
+		{
+			add { }
+			remove { }
+		}
 
-		public event ILogosApplicationEvents_PanelClosedEventHandler PanelClosed = delegate { };
 
-		public event ILogosApplicationEvents_PanelOpenedEventHandler PanelOpened = delegate { };
+		event ILogosApplicationEvents_PanelClosedEventHandler ILogosApplicationEvents_Event.PanelClosed
+		{
+			add { }
+			remove { }
+		}
+
+		event ILogosApplicationEvents_PanelOpenedEventHandler ILogosApplicationEvents_Event.PanelOpened
+		{
+			add { }
+			remove { }
+		}
 
 		#endregion
 	}

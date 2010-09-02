@@ -19,7 +19,11 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		{
 		}
 
-		public event DLbxApplicationEvents_EventFiredEventHandler EventFired;
+		event DLbxApplicationEvents_EventFiredEventHandler DLbxApplicationEvents_Event.EventFired
+		{
+			add { }
+			remove { }
+		}
 	}
 #pragma warning restore 67
 	#endregion

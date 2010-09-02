@@ -12,16 +12,16 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 	[TestFixture]
 	public class LogosPositionHandlerFactoryTests
 	{
-		private LibronixPositionHandlerFactoryDouble m_LibronixFactory;
+		private Logos4PositionHandlerFactoryDouble m_LogosFactory;
 
 		/// <summary/>
 		[SetUp]
 		public void Setup()
 		{
-			m_LibronixFactory = new LibronixPositionHandlerFactoryDouble();
+			m_LogosFactory = new Logos4PositionHandlerFactoryDouble();
 			LogosPositionHandlerFactory.ResetCreatedEvent();
 			LogosPositionHandlerFactory.ResetFactories();
-			LogosPositionHandlerFactory.AddFactory(m_LibronixFactory);
+			LogosPositionHandlerFactory.AddFactory(m_LogosFactory);
 		}
 
 		///--------------------------------------------------------------------------------------
@@ -32,7 +32,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		[Test]
 		public void IsNotInstalled()
 		{
-			m_LibronixFactory.LibronixIsInstalled = false;
+			m_LogosFactory.Logos4IsInstalled = false;
 			Assert.IsFalse(LogosPositionHandlerFactory.IsNotInstalled);
 			try
 			{
@@ -51,18 +51,19 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		/// </summary>
 		/// ------------------------------------------------------------------------------------
 		[Test]
-		public void SecondFactoryIsInstalled_Logos4()
+		[Platform(Exclude = "Linux", Reason = "Libronix tests not working on Linux because of stdole dependency")]
+		public void SecondFactoryIsInstalled_Libronix()
 		{
-			m_LibronixFactory.LibronixIsInstalled = false;
+			m_LogosFactory.Logos4IsInstalled = false;
 
 			// Simulate a second factory
 			LogosPositionHandlerFactory.AddFactory(
-				new Logos4PositionHandlerFactoryDouble {Logos4IsInstalled = true, Logos4IsRunning = true});
+				new LibronixPositionHandlerFactoryDouble {LibronixIsInstalled = true, LibronixIsRunning = true});
 
 			using (var posHandler = (IDisposable)LogosPositionHandlerFactory.CreateInstance(false, 0, false))
 			{
 				Assert.IsFalse(LogosPositionHandlerFactory.IsNotInstalled);
-				Assert.IsInstanceOf(typeof (Logos4PositionHandler), posHandler);
+				Assert.IsInstanceOf(typeof (LibronixPositionHandler), posHandler);
 			}
 		}
 
@@ -73,20 +74,20 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		/// </summary>
 		/// ------------------------------------------------------------------------------------
 		[Test]
-		public void SecondFactoryIsInstalled_Libronix()
+		public void SecondFactoryIsInstalled_Logos4()
 		{
-			m_LibronixFactory.LibronixIsInstalled = true;
-			m_LibronixFactory.LibronixIsRunning = true;
+			m_LogosFactory.Logos4IsInstalled = true;
+			m_LogosFactory.Logos4IsRunning = true;
 
 			LogosPositionHandlerFactory.ResetFactories();
 			LogosPositionHandlerFactory.AddFactory(
-				new Logos4PositionHandlerFactoryDouble { Logos4IsInstalled = false });
-			LogosPositionHandlerFactory.AddFactory(m_LibronixFactory);
+				new LibronixPositionHandlerFactoryDouble { LibronixIsInstalled = false });
+			LogosPositionHandlerFactory.AddFactory(m_LogosFactory);
 
 			using (var posHandler = (IDisposable)LogosPositionHandlerFactory.CreateInstance(false, 0, false))
 			{
 				Assert.IsFalse(LogosPositionHandlerFactory.IsNotInstalled);
-				Assert.IsInstanceOf(typeof (LibronixPositionHandler), posHandler);
+				Assert.IsInstanceOf(typeof (Logos4PositionHandler), posHandler);
 			}
 		}
 
@@ -100,11 +101,11 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		[ExpectedException(typeof(LibronixNotRunningException))]
 		public void SecondFactoryIsInstalled_NotRunning()
 		{
-			m_LibronixFactory.LibronixIsInstalled = false;
+			m_LogosFactory.Logos4IsInstalled = false;
 
 			// Simulate a second factory
 			LogosPositionHandlerFactory.AddFactory(
-				new Logos4PositionHandlerFactoryDouble { Logos4IsInstalled = true, Logos4IsRunning = false });
+				new LibronixPositionHandlerFactoryDouble { LibronixIsInstalled = true, LibronixIsRunning = false });
 
 			LogosPositionHandlerFactory.CreateInstance(false, 0, true);
 		}
@@ -119,12 +120,12 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		[ExpectedException(typeof(LibronixNotRunningException))]
 		public void FirstFactoryIsInstalled_NotRunning()
 		{
-			m_LibronixFactory.LibronixIsInstalled = true;
-			m_LibronixFactory.LibronixIsRunning = false;
+			m_LogosFactory.Logos4IsInstalled = true;
+			m_LogosFactory.Logos4IsRunning = false;
 
 			// Simulate a second factory
 			LogosPositionHandlerFactory.AddFactory(
-				new Logos4PositionHandlerFactoryDouble { Logos4IsInstalled = false, Logos4IsRunning = false });
+				new LibronixPositionHandlerFactoryDouble { LibronixIsInstalled = false, LibronixIsRunning = false });
 
 			LogosPositionHandlerFactory.CreateInstance(false, 0, true);
 		}
@@ -138,7 +139,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		[ExpectedException(typeof(LibronixNotInstalledException))]
 		public void NotInstalled()
 		{
-			m_LibronixFactory.LibronixIsInstalled = false;
+			m_LogosFactory.Logos4IsInstalled = false;
 			LogosPositionHandlerFactory.CreateInstance(false, 0, true);
 		}
 
@@ -151,8 +152,8 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		[Test]
 		public void DontStartNoException()
 		{
-			m_LibronixFactory.LibronixIsInstalled = true;
-			m_LibronixFactory.LibronixIsRunning = false;
+			m_LogosFactory.Logos4IsInstalled = true;
+			m_LogosFactory.Logos4IsRunning = false;
 			Assert.IsNull(LogosPositionHandlerFactory.CreateInstance(false, 0, false));
 		}
 
@@ -166,8 +167,8 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		[ExpectedException(typeof(LibronixNotRunningException))]
 		public void DontStart()
 		{
-			m_LibronixFactory.LibronixIsInstalled = true;
-			m_LibronixFactory.LibronixIsRunning = false;
+			m_LogosFactory.Logos4IsInstalled = true;
+			m_LogosFactory.Logos4IsRunning = false;
 			LogosPositionHandlerFactory.CreateInstance(false, 0, true);
 		}
 
@@ -179,9 +180,9 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		[Test]
 		public void Start()
 		{
-			m_LibronixFactory.LibronixIsInstalled = true;
-			m_LibronixFactory.LibronixIsRunning = false;
-			using (var handler = LogosPositionHandlerFactory.CreateInstance(true, 0, false) as LibronixPositionHandler)
+			m_LogosFactory.Logos4IsInstalled = true;
+			m_LogosFactory.Logos4IsRunning = false;
+			using (var handler = (IDisposable)LogosPositionHandlerFactory.CreateInstance(true, 0, false))
 			{
 				Assert.IsNotNull(handler);
 			}
@@ -195,12 +196,11 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		[Test]
 		public void AlreadyRunning()
 		{
-			m_LibronixFactory.LibronixIsInstalled = true;
-			m_LibronixFactory.LibronixIsRunning = true;
-			using (m_LibronixFactory.LibronixPositionHandler =
-				new LibronixPositionHandlerDouble(0, new LbxApplicationDouble()))
+			m_LogosFactory.Logos4IsInstalled = true;
+			m_LogosFactory.Logos4IsRunning = true;
+			using (m_LogosFactory.Logos4PositionHandler = new Logos4PositionHandlerDouble(0, new LogosApplicationDouble()))
 			{
-				using (var handler = LogosPositionHandlerFactory.CreateInstance(true, 0, false) as LibronixPositionHandler)
+				using (var handler = (IDisposable)LogosPositionHandlerFactory.CreateInstance(true, 0, false))
 				{
 					Assert.IsNotNull(handler);
 				}

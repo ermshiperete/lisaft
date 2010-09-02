@@ -18,6 +18,7 @@ using NUnit.Framework;
 
 namespace SIL.FieldWorks.TE.LibronixLinker
 {
+#if !__MonoCS__
 	/// ----------------------------------------------------------------------------------------
 	/// <summary>
 	/// Tests the ConvertFrom/ToBcv methods of the LibronixPositionHandler class
@@ -160,4 +161,5 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 			Assert.AreEqual("bible.5.4.3", LbxResourceWindowInfoDouble.Reference);
 		}
 	}
+#endif
 }
