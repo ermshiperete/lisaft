@@ -1,6 +1,6 @@
 using System;
 using System.Windows.Forms;
-using SIL.FieldWorks.TE.LibronixLinker;
+using SIL.Utils;
 
 namespace LibronixSantaFeTranslator
 {

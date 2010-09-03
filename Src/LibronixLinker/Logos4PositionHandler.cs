@@ -1,17 +1,28 @@
+// ---------------------------------------------------------------------------------------------
+#region // Copyright (c) 2010, SIL International. All Rights Reserved.
+// <copyright from='2010' to='2010' company='SIL International'>
+//		Copyright (c) 2010, SIL International. All Rights Reserved.   
+//    
+//		Distributable under the terms of either the Common Public License or the
+//		GNU Lesser General Public License, as specified in the LICENSING.txt file.
+// </copyright> 
+#endregion
+// ---------------------------------------------------------------------------------------------
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using Logos4Lib;
 
-namespace SIL.FieldWorks.TE.LibronixLinker
+namespace SIL.Utils
 {
 	/// ----------------------------------------------------------------------------------------
 	/// <summary>
 	/// Class that receives position changed events from Logos 4
 	/// </summary>
 	/// ----------------------------------------------------------------------------------------
-	public class Logos4PositionHandler: IDisposable, ILogosPositionHandler, ILogosPositionHandlerInternal
+	internal class Logos4PositionHandler: IDisposable, ILogosPositionHandler, ILogosPositionHandlerInternal
 	{
 		#region Member variables
 		/// <summary>Fired when the scroll position of a resource is changed in Logos 4</summary>
@@ -62,6 +73,8 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 
 		private void Initialize(LogosApplication logosApplication)
 		{
+			Debug.Assert(!m_MarshalingControl.InvokeRequired, 
+				"Initialize() needs to be called on UI thread");
 			m_logosApp = logosApplication;
 			if (m_logosApp == null)
 				return;
@@ -129,6 +142,8 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 			{
 				RaiseDisposedEvent();
 
+				Cleanup();
+
 				// needs to come last
 				if (m_MarshalingControl != null)
 					m_MarshalingControl.Dispose();
@@ -138,13 +153,49 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 			m_fDisposed = true;
 		}
 
+		/// ------------------------------------------------------------------------------------
+		/// <summary>
+		/// Clears the logos application
+		/// </summary>
+		/// <developernote>Needs to run on the main thread</developernote>
+		/// ------------------------------------------------------------------------------------
+		private void Cleanup()
+		{
+			if (m_MarshalingControl.InvokeRequired)
+				m_MarshalingControl.BeginInvoke((MethodInvoker)Cleanup);
+			else
+			{
+				try
+				{
+					m_logosApp.Exiting -= OnLogosExiting;
+					m_logosApp.PanelChanged -= OnPanelChanged;
+				}
+				catch (COMException)
+				{
+					// ignore any exceptions
+				} 
+				m_logosApp = null;
+			}
+		}
+
 		#endregion
 
 		#region Event handlers
+		/// ------------------------------------------------------------------------------------
+		/// <summary>
+		/// Called when Logos 4 exits
+		/// </summary>
+		/// <developernote>Needs to run on the main thread</developernote>
+		/// ------------------------------------------------------------------------------------
 		private void OnLogosExiting()
 		{
-			m_fLogosAppQuit = true;
-			Dispose();
+			if (m_MarshalingControl.InvokeRequired)
+				m_MarshalingControl.BeginInvoke((MethodInvoker)OnLogosExiting);
+			else
+			{
+				m_fLogosAppQuit = true;
+				Dispose();
+			}
 		}
 
 		private delegate void PanelChangedDelegate(object objPanel, object reserved);
@@ -153,7 +204,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		/// <summary>
 		/// Called when the panel in Logos 4 changed
 		/// </summary>
-		/// <remarks>Needs to run on the main thread</remarks>
+		/// <developernote>Needs to run on the main thread</developernote>
 		/// ------------------------------------------------------------------------------------
 		protected void OnPanelChanged(object objPanel, object reserved)
 		{

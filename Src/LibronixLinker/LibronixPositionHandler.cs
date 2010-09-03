@@ -21,7 +21,7 @@ using LibronixDLS;
 using LibronixDLSUtility;
 using ResourceDriver;
 
-namespace SIL.FieldWorks.TE.LibronixLinker
+namespace SIL.Utils
 {
 	#region Exceptions
 	/// ----------------------------------------------------------------------------------------
@@ -124,7 +124,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 	/// use lock statements!</para>
 	/// </developernote>
 	/// ----------------------------------------------------------------------------------------
-	public class LibronixPositionHandler: IDisposable, ILogosPositionHandler, ILogosPositionHandlerInternal
+	internal class LibronixPositionHandler: IDisposable, ILogosPositionHandler, ILogosPositionHandlerInternal
 	{
 		#region LinkInfo struct
 		/// <summary></summary>
@@ -587,7 +587,7 @@ namespace SIL.FieldWorks.TE.LibronixLinker
 		/// <summary>
 		/// Called when the position changed.
 		/// </summary>
-		/// <param name="e">The <see cref="SIL.FieldWorks.TE.LibronixLinker.PositionChangedEventArgs"/>
+		/// <param name="e">The <see cref="SIL.Utils.PositionChangedEventArgs"/>
 		/// instance containing the event data.</param>
 		/// ------------------------------------------------------------------------------------
 		protected virtual void RaisePositionChangedEvent(PositionChangedEventArgs e)

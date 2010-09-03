@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.Windows.Forms;
 using NetMatters;
 using SIL.FieldWorks.Common.ScriptureUtils;
-using SIL.FieldWorks.TE.LibronixLinker;
+using SIL.Utils;
 
 namespace LibronixSantaFeTranslator
 {

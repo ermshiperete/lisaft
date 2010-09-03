@@ -1,16 +1,23 @@
-﻿#if !__MonoCS__
+﻿// ---------------------------------------------------------------------------------------------
+#region // Copyright (c) 2010, SIL International. All Rights Reserved.
+// <copyright from='2010' to='2010' company='SIL International'>
+//		Copyright (c) 2010, SIL International. All Rights Reserved.   
+//    
+//		Distributable under the terms of either the Common Public License or the
+//		GNU Lesser General Public License, as specified in the LICENSING.txt file.
+// </copyright> 
+#endregion
+// ---------------------------------------------------------------------------------------------
+#if !__MonoCS__
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Text;
 using LibronixDLS;
 using stdole;
 using Utility;
 
-namespace SIL.FieldWorks.TE.LibronixLinker
+namespace SIL.Utils
 {
 	// not working on Linux because Libronix interop DLLs have a reference to stdole.dll
 	// which doesn't exist on Linux. Substituting IPictureDisp with our own definition

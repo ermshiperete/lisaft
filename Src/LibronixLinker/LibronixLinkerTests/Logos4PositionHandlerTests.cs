@@ -15,9 +15,9 @@
 // </remarks>
 // ---------------------------------------------------------------------------------------------
 using NUnit.Framework;
-using SIL.FieldWorks.TE.LibronixLinker.Logos4Doubles;
+using SIL.Utils.Logos4Doubles;
 
-namespace SIL.FieldWorks.TE.LibronixLinker
+namespace SIL.Utils
 {
 	/// ----------------------------------------------------------------------------------------
 	/// <summary>

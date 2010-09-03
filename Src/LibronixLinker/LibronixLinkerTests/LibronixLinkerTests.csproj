@@ -8,7 +8,7 @@
     <ProjectGuid>{BA5945DD-5BF7-4DD9-8221-DDAA979F53AB}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>SIL.FieldWorks.TE.LibronixLinker</RootNamespace>
+    <RootNamespace>SIL.Utils</RootNamespace>
     <AssemblyName>LibronixLinkerTests</AssemblyName>
     <FileUpgradeFlags>
     </FileUpgradeFlags>

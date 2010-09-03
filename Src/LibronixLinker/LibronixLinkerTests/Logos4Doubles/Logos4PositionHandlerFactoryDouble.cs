@@ -1,10 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using Logos4Lib;
+﻿// ---------------------------------------------------------------------------------------------
+#region // Copyright (c) 2010, SIL International. All Rights Reserved.
+// <copyright from='2010' to='2010' company='SIL International'>
+//		Copyright (c) 2010, SIL International. All Rights Reserved.   
+//    
+//		Distributable under the terms of either the Common Public License or the
+//		GNU Lesser General Public License, as specified in the LICENSING.txt file.
+// </copyright> 
+#endregion
+// ---------------------------------------------------------------------------------------------
 
-namespace SIL.FieldWorks.TE.LibronixLinker.Logos4Doubles
+namespace SIL.Utils.Logos4Doubles
 {
 	/// ----------------------------------------------------------------------------------------
 	/// <summary>
