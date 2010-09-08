@@ -521,12 +521,20 @@ namespace SIL.Utils
 			get
 			{
 				var linkSets = new List<string>();
-				if (m_LibronixApp != null)
+				try
 				{
-					// Add all Libronix link sets to the list
-					linkSets.AddRange(from LbxWindowLinkSet linkSet in m_LibronixApp.WindowLinkSets
-									  select linkSet.Title.Replace("&", ""));
+					if (m_LibronixApp != null)
+					{
+						// Add all Libronix link sets to the list
+						linkSets.AddRange(from LbxWindowLinkSet linkSet in m_LibronixApp.WindowLinkSets
+										  select linkSet.Title.Replace("&", ""));
+					}
+
 				}
+				catch
+				{
+					// ignore any errors
+				} 
 				return linkSets;
 			}
 		}

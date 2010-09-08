@@ -76,12 +76,12 @@ namespace LibronixSantaFeTranslator
 			if (m_positionHandler.AvailableLinkSets.Count > 0)
 			{
 				m_LinkSetCombo.Items.Clear();
-				foreach (string linkSet in m_positionHandler.AvailableLinkSets)
+				foreach (var linkSet in m_positionHandler.AvailableLinkSets)
 					m_LinkSetCombo.Items.Add(linkSet);
 			}
 
 			m_LinkSetCombo.SelectedIndex =
-				Properties.Settings.Default.LinkSet >= m_LinkSetCombo.Items.Count ? 0 :
+				Properties.Settings.Default.LinkSet >= m_LinkSetCombo.Items.Count ? -1 :
 				Properties.Settings.Default.LinkSet;
 		}
 

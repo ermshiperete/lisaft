@@ -219,9 +219,12 @@ namespace SIL.Utils
 					// Libronix got started!
 					var linkSet = (int)s_timer.Tag;
 					var positionHandler = factory.CreateInstance(false, linkSet, true);
-					s_timer.Stop();
-					OnCreated(linkSet, positionHandler);
-					break;
+					if (positionHandler != null)
+					{
+						s_timer.Stop();
+						OnCreated(linkSet, positionHandler);
+						break;
+					}
 				}
 			}
 		}
