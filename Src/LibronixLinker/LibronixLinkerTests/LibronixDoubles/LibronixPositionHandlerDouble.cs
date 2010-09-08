@@ -50,7 +50,7 @@ namespace SIL.Utils
 		/// </summary>
 		public int CallOnTick()
 		{
-			OnTick(null, EventArgs.Empty);
+			OnPollTimerTick(null, EventArgs.Empty);
 			return m_eventArgs.BcvRef;
 		}
 	}

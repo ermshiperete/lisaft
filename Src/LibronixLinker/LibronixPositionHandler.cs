@@ -19,7 +19,6 @@ using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using LibronixDLS;
 using LibronixDLSUtility;
-using ResourceDriver;
 
 namespace SIL.Utils
 {
@@ -101,82 +100,24 @@ namespace SIL.Utils
 
 	/// ----------------------------------------------------------------------------------------
 	/// <summary>
-	/// Class that receives position changed events from Libronix
+	/// Class that polls for changed positions in Libronix
 	/// </summary>
-	/// <remarks>There is only one instance of this class per link set.</remarks>
-	/// 
-	/// <developernote>
-	/// <para>The following comment and some of the code is obsolete. We had some race conditions
-	/// and found an alternative way to return quickly (see Application_Idle and caller) without using
-	/// threads.</para>
-	/// <para>We create a separate thread for connecting to Libronix. The reason is
-	/// that we want to return ASAP when we receive a PositionChanged notification from 
-	/// Libronix otherwise things get messed up in Libronix. When we handle PositionChanged 
-	/// event, we go to a different verse which can take quite a while. When we receive the 
-	/// notifications on a separate thread (and then deal with them asynchronously in the main
-	/// thread) we can return much faster.</para>
-	/// <para>Most methods of this class is executed on a separate thread (LibronixSync). The 
-	/// public methods are called from the main thread and thus are executed on the main thread. 
-	/// The Libronix thread basically just creates the Libronix COM objects and then starts a 
-	/// message loop and waits for any events that Libronix might send.
-	/// Any public method and any method that can be called from Libronix (i.e. any event 
-	/// handling method) needs to synchronize the access to member variables, i.e. needs to
-	/// use lock statements!</para>
-	/// </developernote>
+	/// <remarks>There is only one instance of this class per link set.
+	/// This implementation doesn't take link sets into consideration when receiving references
+	/// from Libronix.
+	/// While this polling approach is not ideal it works around the crash described in 
+	/// TE-6457.</remarks>
 	/// ----------------------------------------------------------------------------------------
-	internal class LibronixPositionHandler: IDisposable, ILogosPositionHandler, ILogosPositionHandlerInternal
+	public class LibronixPositionHandler : IDisposable, ILogosPositionHandler, ILogosPositionHandlerInternal
 	{
-		#region LinkInfo struct
-		/// <summary></summary>
-		private struct LinkInfo
-		{
-			/// <summary>The resource window info in Libronix</summary>
-			public readonly LbxResourceWindowInfo WindowInfo;
-			/// <summary>A cookie that identifies the connection</summary>
-			public readonly int Cookie;
-			/// <summary>Positions list in Libronix</summary>
-			public readonly LbxResourcePositions Positions;
-
-			/// --------------------------------------------------------------------------------
-			/// <summary>
-			/// Initializes a new instance of the LinkInfo struct.
-			/// </summary>
-			/// <param name="windowInfo">The window info.</param>
-			/// <param name="cookie">The cookie.</param>
-			/// <param name="positions">The positions.</param>
-			/// --------------------------------------------------------------------------------
-			public LinkInfo(LbxResourceWindowInfo windowInfo, int cookie,
-				LbxResourcePositions positions)
-			{
-				WindowInfo = windowInfo;
-				Cookie = cookie;
-				Positions = positions;
-			}
-		}
-		#endregion
-
-		///// <summary>Represents the method that will raise the PositionChanged event</summary>
-		///// <param name="e">Event arguments.</param>
-		//private delegate void PositionChangedDelegate(PositionChangedEventArgs e);
-
 		#region Member variables
 		/// <summary>Reference counter for this instance. We have only one instance per link set.
 		/// If the reference counter goes to 0 we delete the object.</summary>
 		private volatile int m_ReferenceCount;
 		/// <summary><c>true</c> if the object is (almost) deleted</summary>
 		private volatile bool m_fDisposed;
-		/// <summary>Control used to marshal between threads. This control gets created on the
-		/// main thread.</summary>
-		private Control m_MarshalingControl;
-		/// <summary>Used for locking</summary>
-		/// <remarks>Note: we can't use lock(this) (or equivalent) since we use lock(this)
-		/// in the Dispose(bool) method which might result in dead locks!
-		/// </remarks>
-		private readonly object m_Synchronizer = new object();
 
-		private LbxApplication m_libronixApp;
-		private LbxResourcePositionChangedBridge m_PositionChangedBridge;
-		private List<LinkInfo> m_cookies = new List<LinkInfo>();
+		private LbxApplication m_LibronixApp;
 		private LbxApplicationEventsBridge m_ApplicationEventsBridge;
 		private int m_ApplicationEventsCookie;
 
@@ -188,12 +129,12 @@ namespace SIL.Utils
 		private bool m_fLogosAppQuit;
 
 		/// <summary>Timer used to poll Libronix for current references.</summary>
-		protected Timer m_pollTimer;
+		protected Timer m_PollTimer;
 		// Reference most recently retrieved from Libronix (-1 if none)
-		private int m_bcvRef = -1;
+		private int m_BcvRef = -1;
 
 		/// <summary>Fired when the scroll position of a resource is changed in Libronix</summary>
-		/// <remarks>The BcvRef reference is in BBCCCVVV format. The book number
+		/// <remarks>The bcvRef reference is in BBCCCVVV format. The book number
 		/// is 1-39 for OT books and 40-66 for NT books. Apocrypha are not supported. The 
 		/// conversion between Libronix and BBCCCVVV format doesn't consider any versification
 		/// issues.</remarks>
@@ -204,7 +145,7 @@ namespace SIL.Utils
 
 		private event EventHandler<DisposedEventArgs> DisposedEvent;
 
-		private PositionChangedEventArgs m_lastPositionArgs; // set by Libronix, used in onIdle
+		private PositionChangedEventArgs m_LastPositionArgs; // set by Libronix, used in onIdle
 		#endregion
 
 		#region Construction
@@ -218,16 +159,13 @@ namespace SIL.Utils
 		internal LibronixPositionHandler(int linkSet, LbxApplication libronixApp)
 		{
 			m_LinkSet = linkSet;
-			m_MarshalingControl = new Control();
-			m_MarshalingControl.CreateControl();
-
 			Initialize(libronixApp);
 		}
 
 		#endregion
 
 		#region Dispose related methods
-		#if DEBUG
+#if DEBUG
 		/// ------------------------------------------------------------------------------------
 		/// <summary>
 		/// Releases unmanaged resources and performs other cleanup operations before the
@@ -244,7 +182,7 @@ namespace SIL.Utils
 		{
 			Debug.Fail("Not disposed: " + GetType().Name);
 		}
-		#endif
+#endif
 
 		/// ------------------------------------------------------------------------------------
 		/// <summary>
@@ -262,18 +200,8 @@ namespace SIL.Utils
 
 			if (!m_fDisposed)
 			{
-				// we do lock(this) because we want to prevent concurrent Dispose calls,
-				// but we don't want to interfere with any other methods because that might
-				// cause dead-locks - Dispose might be called on a separate thread.
-				lock (this)
-				{
-					if (!m_fDisposed)
-					{
-						Dispose(true);
-
-						GC.SuppressFinalize(this);
-					}
-				}
+				Dispose(true);
+				GC.SuppressFinalize(this);
 			}
 		}
 
@@ -299,28 +227,21 @@ namespace SIL.Utils
 
 				RaiseDisposedEvent();
 
-				if (m_pollTimer != null)
+				if (m_PollTimer != null)
 				{
-					m_pollTimer.Stop();
-					m_pollTimer.Dispose();
+					m_PollTimer.Stop();
+					m_PollTimer.Dispose();
 				}
-
-				if (m_MarshalingControl != null)
-					m_MarshalingControl.Dispose();
 			}
 
-			m_cookies = null;
-			m_pollTimer = null;
-			m_MarshalingControl = null;
+			m_PollTimer = null;
 
 			m_fDisposed = true;
 		}
 
 		private void RaiseDisposedEvent()
 		{
-			if (m_MarshalingControl.InvokeRequired)
-				m_MarshalingControl.BeginInvoke((MethodInvoker)RaiseDisposedEvent);
-			else if (DisposedEvent != null)
+			if (DisposedEvent != null)
 				DisposedEvent(this, new DisposedEventArgs(m_LinkSet, m_fLogosAppQuit));
 		}
 		#endregion
@@ -328,23 +249,20 @@ namespace SIL.Utils
 		#region Private methods and properties
 		/// ------------------------------------------------------------------------------------
 		/// <summary>
-		/// Initializes the Libronix COM objects.
+		/// Initalizes the Libronix COM objects.
 		/// </summary>
 		/// ------------------------------------------------------------------------------------
 		internal void Initialize(LbxApplication libApp)
 		{
-			m_libronixApp = libApp;
-			if (m_libronixApp == null)
+			m_LibronixApp = libApp;
+			if (m_LibronixApp == null)
 				return;
 
-			m_PositionChangedBridge = null;
 			StartPollTimer();
 
 			m_ApplicationEventsBridge = CreateLbxApplicationEventsBridge();
 			m_ApplicationEventsBridge.EventFired += OnApplicationEventsBridgeEventFired;
-			m_ApplicationEventsCookie = m_ApplicationEventsBridge.Connect(m_libronixApp);
-
-			SetupPositionEvents();
+			m_ApplicationEventsCookie = m_ApplicationEventsBridge.Connect(m_LibronixApp);
 		}
 
 		/// ------------------------------------------------------------------------------------
@@ -365,51 +283,50 @@ namespace SIL.Utils
 		/// ------------------------------------------------------------------------------------
 		protected virtual void StartPollTimer()
 		{
-			if (m_pollTimer == null)
+			if (m_PollTimer == null)
 			{
-				m_pollTimer = new Timer {Interval = 1000};
-				m_pollTimer.Tick += OnTick;
-				m_pollTimer.Start();
+				m_PollTimer = new Timer { Interval = 1000 };
+				m_PollTimer.Tick += OnPollTimerTick;
+				m_PollTimer.Start();
 			}
 		}
 
+		/// ------------------------------------------------------------------------------------
 		/// <summary>
 		/// See if we can get a current reference from some linked resource in Libronix.
 		/// If so, and if it is different from our current one, raise the appropriate event.
 		/// </summary>
-		/// <param name="args"></param>
-		/// <param name="sender"></param>
-		protected void OnTick(object sender, EventArgs args)
+		/// <param name="sender">The sender.</param>
+		/// <param name="args">The <see cref="System.EventArgs"/> instance containing the event data.</param>
+		/// ------------------------------------------------------------------------------------
+		protected void OnPollTimerTick(object sender, EventArgs args)
 		{
 			try
 			{
-				lock (m_Synchronizer)
+				if (m_LibronixApp == null)
+					return;
+				var windows = m_LibronixApp.Application.Windows;
+				foreach (LbxWindow window in windows)
 				{
-					if (m_libronixApp == null)
-						return;
-					LbxWindows windows = m_libronixApp.Application.Windows;
-					foreach (LbxWindow window in windows)
+					if (window.Type == "resource")
 					{
-						if (window.Type == "resource")
+						var windowInfo = (LbxResourceWindowInfo)window.Info;
+						if (windowInfo.ActiveDataType == "bible")
 						{
-							var windowInfo = (LbxResourceWindowInfo)window.Info;
-							if (windowInfo.ActiveDataType == "bible")
+							var bcvRef = ConvertToBcv(windowInfo.ActiveReference);
+							if (bcvRef >= 0)
 							{
-								int bcvRef = ConvertToBcv(windowInfo.ActiveReference);
-								if (bcvRef >= 0)
+								if (bcvRef != m_BcvRef)
 								{
-									if (bcvRef != m_bcvRef)
-									{
-										m_bcvRef = bcvRef;
-										RaisePositionChangedEvent(new PositionChangedEventArgs(bcvRef));
-									}
-									// It's very important that we return, whether or not the reference is different,
-									// the first time we find a valid reference source. Otherwise, if Libronix is
-									// displaying two relevant windows at different locations, TE starts oscillating,
-									// since each tick one of them has the same reference as last time, so the OTHER
-									// is selected as the one to switch to.
-									return;
+									m_BcvRef = bcvRef;
+									RaisePositionChangedEvent(new PositionChangedEventArgs(bcvRef));
 								}
+								// It's very important that we return, whether or not the reference is different,
+								// the first time we find a valid reference source. Otherwise, if Libronix is
+								// displaying two relevant windows at different locations, TE starts oscillating,
+								// since each tick one of them has the same reference as last time, so the OTHER
+								// is selected as the one to switch to.
+								return;
 							}
 						}
 					}
@@ -419,11 +336,10 @@ namespace SIL.Utils
 			{
 				// We're getting a COMException if Libronix got closed. We try to reinitialize.
 				Close();
-				// TODO: Initialize();
 			}
 			catch (Exception e)
 			{
-				Debug.Fail("Got exception in OnTick: " + e.Message);
+				Debug.Fail("Got exception in OnPollTimerTick: " + e.Message);
 			}
 		}
 
@@ -434,85 +350,28 @@ namespace SIL.Utils
 		/// ------------------------------------------------------------------------------------
 		private void Close()
 		{
-			lock (this)
+			if (m_PollTimer != null)
 			{
-				if (m_PositionChangedBridge != null)
-				{
-					if (m_cookies != null)
-						RemovePositionEvents();
-					m_PositionChangedBridge.PositionChanged -= OnPositionChangedInLibronix;
-				}
-				m_PositionChangedBridge = null;
-				if (m_cookies != null) 
-					m_cookies.Clear();
-				if (m_pollTimer != null)
-				{
-					m_pollTimer.Stop();
-					m_pollTimer.Dispose();
-					m_pollTimer = null;
-				}
-
-				if (m_ApplicationEventsBridge != null)
-				{
-					m_ApplicationEventsBridge.Disconnect(m_libronixApp, m_ApplicationEventsCookie);
-					m_ApplicationEventsBridge.EventFired -= OnApplicationEventsBridgeEventFired;
-				}
-				m_ApplicationEventsBridge = null;
-
-				m_libronixApp = null;
+				m_PollTimer.Stop();
+				m_PollTimer.Dispose();
+				m_PollTimer = null;
 			}
-		}
 
-		/// ------------------------------------------------------------------------------------
-		/// <summary>
-		/// Subscribes to the Position changed event for all windows in current link set.
-		/// </summary>
-		/// <remarks>NOTE: subscribing to all windows in the link set fires the position changed 
-		/// event multiple times. However, if we don't do it and the first window happens not to
-		/// have the same range as the other resources, then we don't get event.</remarks>
-		/// ------------------------------------------------------------------------------------
-		private void SetupPositionEvents()
-		{
-			m_cookies.Clear();
-			try
+			if (m_ApplicationEventsBridge != null)
 			{
-				if (m_libronixApp == null || m_PositionChangedBridge == null)
-					return;
-
-				LbxWindows windows = m_libronixApp.Application.Windows;
-				foreach (LbxWindow window in windows)
+				try
 				{
-					if (window.Type == "resource")
-					{
-						var windowInfo = (LbxResourceWindowInfo)window.Info;
-						if (windowInfo.ActiveDataType == "bible")
-						{
-							int cookie = m_PositionChangedBridge.Connect(windowInfo);
-							var view = (LbxResourceView)window.View;
-							var resource = (LbxResource)view.Resource;
-							var positions = (LbxResourcePositions)resource.get_Positions(null);
-							m_cookies.Add(new LinkInfo(windowInfo, cookie, positions));
-						}
-					}
+					m_ApplicationEventsBridge.Disconnect(m_LibronixApp, m_ApplicationEventsCookie);
 				}
+				catch
+				{
+					// ignore any errors
+				}
+				m_ApplicationEventsBridge.EventFired -= OnApplicationEventsBridgeEventFired;
 			}
-			catch (COMException e)
-			{
-				m_libronixApp = null;
-				Debug.Fail("Got exception in LibronixPositionHandler.SetupPositionEvents: " + e.Message);
-			}
-		}
+			m_ApplicationEventsBridge = null;
 
-		/// ------------------------------------------------------------------------------------
-		/// <summary>
-		/// Helper method to disconnect from Libronix.
-		/// </summary>
-		/// ------------------------------------------------------------------------------------
-		private void RemovePositionEvents()
-		{
-			foreach (LinkInfo info in m_cookies)
-				m_PositionChangedBridge.Disconnect(info.WindowInfo, info.Cookie);
-			m_cookies.Clear();
+			m_LibronixApp = null;
 		}
 
 		/// ------------------------------------------------------------------------------------
@@ -593,81 +452,25 @@ namespace SIL.Utils
 		protected virtual void RaisePositionChangedEvent(PositionChangedEventArgs e)
 		{
 			// Needs to return fast, so hold off actually moving until idle.
-			m_lastPositionArgs = e;
-			Application.Idle += Application_Idle;
-			//if (m_MarshalingControl.InvokeRequired)
-			//{
-			//    m_MarshalingControl.BeginInvoke(new PositionChangedDelegate(RaisePositionChangedEvent), 
-			//        e);
-			//}
-			//else
-			//    PositionChanged(this, e);
+			m_LastPositionArgs = e;
+			Application.Idle += OnApplicationIdle;
 		}
 
-		private void Application_Idle(object sender, EventArgs e)
+		/// ------------------------------------------------------------------------------------
+		/// <summary>
+		/// Called when the application is idle.
+		/// </summary>
+		/// ------------------------------------------------------------------------------------
+		private void OnApplicationIdle(object sender, EventArgs e)
 		{
-			if (m_lastPositionArgs != null && PositionChanged != null)
-				PositionChanged(this, m_lastPositionArgs);
-			Application.Idle -= Application_Idle;
-			m_lastPositionArgs = null;
+			if (m_LastPositionArgs != null && PositionChanged != null)
+				PositionChanged(this, m_LastPositionArgs);
+			Application.Idle -= OnApplicationIdle;
+			m_LastPositionArgs = null;
 		}
 		#endregion
 
 		#region Event handler
-		/// ------------------------------------------------------------------------------------
-		/// <summary>
-		/// Called when the position in Libronix changed.
-		/// </summary>
-		/// <param name="position">The position.</param>
-		/// <param name="reference">The reference.</param>
-		/// <param name="significance">The significance.</param>
-		/// <param name="navigationId">The navigation ID.</param>
-		/// ------------------------------------------------------------------------------------
-		private void OnPositionChangedInLibronix(string position, string reference, int significance,
-			string navigationId)
-		{
-			if (m_fProcessingMessage)
-				return;
-			m_fProcessingMessage = true;
-			try
-			{
-				int bcvRef = -1;
-				lock (m_Synchronizer)
-				{
-					if (m_libronixApp == null)
-						return;
-
-					int i = 0;
-					for (; i < m_cookies.Count; i++)
-					{
-						// Find the resource window that can display the current position.
-						if (m_cookies[i].Positions.IsValid(position))
-							break;
-					}
-					Debug.Assert(i < m_cookies.Count,
-						"Didn't find any Libronix resource that is able to show current position");
-
-					LbxWindowLinkSet linkSet = m_libronixApp.WindowLinkSets[m_LinkSet];
-					if (i < m_cookies.Count && linkSet.Windows.Find(m_cookies[i].WindowInfo.Parent) >= 0)
-					{
-						bcvRef = ConvertToBcv(m_cookies[i].WindowInfo.ActiveReference);
-						Debug.WriteLineIf(bcvRef < 0, "Got reference that couldn't be converted: " +
-							m_cookies[i].WindowInfo.ActiveReference);
-					}
-				}
-				if (bcvRef > -1)
-					RaisePositionChangedEvent(new PositionChangedEventArgs(bcvRef));
-			}
-			catch (Exception e)
-			{
-				Debug.Fail("Got exception in OnPositionChanged: " + e.Message);
-			}
-			finally
-			{
-				m_fProcessingMessage = false;
-			}
-		}
-
 		/// ------------------------------------------------------------------------------------
 		/// <summary>
 		/// Called when the application events bridge event is fired. We use this event to know
@@ -686,12 +489,7 @@ namespace SIL.Utils
 			m_fProcessingMessage = true;
 			try
 			{
-				// NOTE: locking is done inside of Refresh method
-				if (eventString == "WindowOpened" || eventString == "WindowClosed")
-				{
-					Refresh();
-				}
-				else if (eventString == "ApplicationClosing")
+				if (eventString == "ApplicationClosing")
 				{
 					// Libronix is closing - stop using it, but start checking for new instance
 					Close();
@@ -710,22 +508,6 @@ namespace SIL.Utils
 			return string.Empty;
 		}
 
-		///// ------------------------------------------------------------------------------------
-		///// <summary>
-		///// Called when a thread is about to exit.
-		///// </summary>
-		///// <param name="sender">The sender.</param>
-		///// <param name="e">The <see cref="System.EventArgs"/> instance containing the event 
-		///// data.</param>
-		///// ------------------------------------------------------------------------------------
-		//private void OnThreadExit(object sender, EventArgs e)
-		//{
-		//    if (Thread.CurrentThread.Name == "LibronixSync")
-		//    {
-		//        Close();
-		//    }
-		//}
-
 		#endregion
 
 		#region Public methods and properties
@@ -733,24 +515,18 @@ namespace SIL.Utils
 		/// <summary>
 		/// Gets the available link sets.
 		/// </summary>
-		/// <developernote>This method is called on the main thread</developernote>
 		/// ------------------------------------------------------------------------------------
 		public List<string> AvailableLinkSets
 		{
 			get
 			{
 				var linkSets = new List<string>();
-
-				lock (m_Synchronizer)
+				if (m_LibronixApp != null)
 				{
-					if (m_libronixApp != null)
-					{
-						// Add all Libronix link sets to the list
-						linkSets.AddRange(from LbxWindowLinkSet linkSet in m_libronixApp.WindowLinkSets
-						                  select linkSet.Title.Replace("&", ""));
-					}
+					// Add all Libronix link sets to the list
+					linkSets.AddRange(from LbxWindowLinkSet linkSet in m_LibronixApp.WindowLinkSets
+									  select linkSet.Title.Replace("&", ""));
 				}
-
 				return linkSets;
 			}
 		}
@@ -759,16 +535,9 @@ namespace SIL.Utils
 		/// <summary>
 		/// Refreshes the list of current window
 		/// </summary>
-		/// <developernote>This method is called on the main thread</developernote>
 		/// ------------------------------------------------------------------------------------
 		public void Refresh()
 		{
-			lock (m_Synchronizer)
-			{
-				// Remove the old events
-				RemovePositionEvents();
-				SetupPositionEvents();
-			}
 		}
 
 		/// ------------------------------------------------------------------------------------
@@ -776,7 +545,6 @@ namespace SIL.Utils
 		/// Refreshes the specified link set.
 		/// </summary>
 		/// <param name="linkSet">The link set.</param>
-		/// <developernote>This method is called on the main thread</developernote>
 		/// ------------------------------------------------------------------------------------
 		public void Refresh(int linkSet)
 		{
@@ -790,47 +558,35 @@ namespace SIL.Utils
 		/// the current link set.
 		/// </summary>
 		/// <param name="bcvRef">The reference in BBCCCVVV format.</param>
-		/// <developernote>This method is called on the main thread</developernote>
 		/// ------------------------------------------------------------------------------------
-		public virtual void SetReference(int bcvRef)
+		public void SetReference(int bcvRef)
 		{
-Console.WriteLine("checkpoint 1");
 			if (m_fProcessingMessage)
 				return;
 
-			Console.WriteLine("checkpoint 2");
 			m_fProcessingMessage = true;
 			try
 			{
 				LbxResourceWindowInfo info = null;
 				string reference = null;
-				lock (m_Synchronizer)
-				{
-					if (m_libronixApp == null)
-						return;
+				if (m_LibronixApp == null)
+					return;
 
-					Console.WriteLine("checkpoint 3");
-					LbxWindowLinkSet linkSet = m_libronixApp.WindowLinkSets[m_LinkSet];
-					LbxWindows windows = m_libronixApp.Application.Windows;
-					Console.WriteLine("checkpoint 3a: windows={0}, count={1}", windows, windows.Count);
-					foreach (LbxWindow window in windows)
+				var linkSet = m_LibronixApp.WindowLinkSets[m_LinkSet];
+				var windows = m_LibronixApp.Application.Windows;
+				foreach (LbxWindow window in windows)
+				{
+					if (window.Type == "resource" && linkSet.Windows.Find(window) >= 0)
 					{
-						Console.WriteLine("checkpoint 4");
-						if (window.Type == "resource" && linkSet.Windows.Find(window) >= 0)
+						info = (LbxResourceWindowInfo)window.Info;
+						if (info.ActiveDataType == "bible")
 						{
-							Console.WriteLine("checkpoint 5");
-							info = (LbxResourceWindowInfo)window.Info;
-							if (info.ActiveDataType == "bible")
-							{
-								Console.WriteLine("checkpoint 6");
-								reference = ConvertFromBcv(bcvRef);
-								break; // don't go on, the last info found may NOT have the right type.
-							}
+							reference = ConvertFromBcv(bcvRef);
+							break; // don't go on, the last info found may NOT have the right type.
 						}
 					}
 				}
 				// don't lock here since calling GoToReference causes a callback from Libronix
-Console.WriteLine("info={0}, reference={1}", info, reference);
 				if (info != null && reference != null)
 					info.GoToReference(reference, 0, int.MaxValue, string.Empty, null);
 			}
@@ -844,32 +600,6 @@ Console.WriteLine("info={0}, reference={1}", info, reference);
 				m_fProcessingMessage = false;
 			}
 		}
-
-/*
-		/// ------------------------------------------------------------------------------------
-		/// <summary>
-		/// Starts this thread.
-		/// </summary>
-		/// <param name="data">The data.</param>
-		/// <developernote>This method is called on the Libronix thread</developernote>
-		/// ------------------------------------------------------------------------------------
-		private void Start(object data)
-		{
-			// The main thread that created us is in a Wait state at this point, so we don't 
-			// have to lock here. Not doing it helps in the case where we run into a timeout
-			// because creating the timer didn't complete.
-			Initalize();
-
-			// Signal the main thread that we're ready
-			EventWaitHandle waitHandle = data as EventWaitHandle;
-			if (waitHandle != null)
-				waitHandle.Set();
-
-			// Start a message loop and wait for any event that Libronix sends us
-			Application.Run();
-		}
-*/
-
 		#endregion
 
 		#region IRefCount Members

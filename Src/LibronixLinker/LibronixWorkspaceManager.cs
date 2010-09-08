@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------------------------
 #region // Copyright (c) 2010, SIL International. All Rights Reserved.
-// <copyright from='2010' to='2010' company='SIL International'>
-//		Copyright (c) 2010, SIL International. All Rights Reserved.   
+// <copyright from='2007' to='2010' company='SIL International'>
+//		Copyright (c) 2007-2010, SIL International. All Rights Reserved.   
 //    
 //		Distributable under the terms of either the Common Public License or the
 //		GNU Lesser General Public License, as specified in the LICENSING.txt file.
@@ -17,38 +17,30 @@ using LibronixDLS;
 
 namespace SIL.Utils
 {
+	/// ----------------------------------------------------------------------------------------
 	/// <summary>
 	/// Class to manage saving and restoring libronix workspace.
 	/// </summary>
+	/// ----------------------------------------------------------------------------------------
 	public class LibronixWorkspaceManager
 	{
+		/// ------------------------------------------------------------------------------------
 		/// <summary>
 		/// If Libronix is running, save its workspace in the specified file.
-		/// <param name="path"></param>
 		/// </summary>
+		/// ------------------------------------------------------------------------------------
 		public static void SaveWorkspace(string path)
 		{
 			try
 			{
 				// If Libronix isn't running, we'll get an exception here
-				object libApp = Marshal.GetActiveObject("LibronixDLS.LbxApplication");
-				if (libApp == null)
-					return;
-
-				LbxApplication libronixApp = libApp as LbxApplication;
+				var libronixApp = Marshal.GetActiveObject("LibronixDLS.LbxApplication") as LbxApplication;
 				if (libronixApp == null)
 					return;
 
-				object document = libronixApp.MSXML.CreateDocument(0);
-				//MSXML2.DOMDocument40 doc = new MSXML2.DOMDocument40();
-				//doc.
+				var document = libronixApp.MSXML.CreateDocument(0) as MSXML2.DOMDocument;
 				libronixApp.SaveWorkspace(document, "");
-				MSXML2.DOMDocument doc = document as MSXML2.DOMDocument;
-				doc.save(path);
-				//Type docType = document.GetType();
-				//MethodInfo info = docType.GetMethod("save");
-				//if (info != null)
-				//    info.Invoke(document, new object[] {path});
+				document.save(path);
 			}
 			catch (COMException)
 			{
@@ -56,26 +48,40 @@ namespace SIL.Utils
 			}
 		}
 
+		/// ------------------------------------------------------------------------------------
 		/// <summary>
 		/// If Libronix is NOT running, start it up, and restore the specified workspace.
 		/// </summary>
-		/// <param name="path"></param>
+		/// ------------------------------------------------------------------------------------
 		public static void RestoreIfNotRunning(string path)
 		{
-			BackgroundWorker worker = new BackgroundWorker();
-			worker.DoWork += worker_DoWork;
-			worker.RunWorkerCompleted += worker_RunWorkerCompleted;
+			var worker = new BackgroundWorker();
+			worker.DoWork += OnDoWork;
+			worker.RunWorkerCompleted += OnRunWorkerCompleted;
 			worker.RunWorkerAsync(path);
 		}
 
-		static void worker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+		/// ------------------------------------------------------------------------------------
+		/// <summary>
+		/// Handles the RunWorkerCompleted event of the worker control. We use it to display
+		/// a message box if an error occured.
+		/// </summary>
+		/// ------------------------------------------------------------------------------------
+		private static void OnRunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
 		{
 			if (e.Error != null)
 				MessageBox.Show(e.Error.Message);
 		}
 
-		private static void DoTheRestore(string path)
+		/// ------------------------------------------------------------------------------------
+		/// <summary>
+		/// Restores the workspace.
+		/// </summary>
+		/// ------------------------------------------------------------------------------------
+		private static void RestoreWorkspace(string path)
 		{
+#if !__MonoCS__
+			// TODO-Linux: Implement
 			LbxApplication libronixApp = null;
 			try
 			{
@@ -101,18 +107,9 @@ namespace SIL.Utils
 					libronixApp.Visible = true; //let them see it, anyway.
 					return;
 				}
-				object document = libronixApp.MSXML.CreateDocument(0);
-				MSXML2.DOMDocument doc = document as MSXML2.DOMDocument;
-				doc.load(path);
+				var document = libronixApp.MSXML.CreateDocument(0) as MSXML2.DOMDocument;
+				document.load(path);
 
-				//Type docType = document.GetType();
-				//MethodInfo info = docType.GetMethod("Save");
-				//if (info == null)
-				//{
-				//    ReportLoadProblem();
-				//    return;
-				//}
-				//info.Invoke(document, new object[] { path });
 				libronixApp.LoadWorkspace(document, "", DlsSaveChanges.dlsPromptToSaveChanges);
 				libronixApp.Visible = true; //only after we reload the workspace, to save flashing.
 			}
@@ -121,16 +118,29 @@ namespace SIL.Utils
 				libronixApp.Visible = true; //let them see it, anyway.
 				ReportLoadProblem();
 			}
+#endif
 		}
 
-		static void worker_DoWork(object sender, DoWorkEventArgs e)
+		/// ------------------------------------------------------------------------------------
+		/// <summary>
+		/// Handles the DoWork event of the worker control.
+		/// </summary>
+		/// ------------------------------------------------------------------------------------
+		private static void OnDoWork(object sender, DoWorkEventArgs e)
 		{
-			DoTheRestore(e.Argument as string);
+			RestoreWorkspace(e.Argument as string);
 		}
 
+#if !__MonoCS__
+		/// ------------------------------------------------------------------------------------
+		/// <summary>
+		/// Reports the load problem.
+		/// </summary>
+		/// ------------------------------------------------------------------------------------
 		private static void ReportLoadProblem()
 		{
 			throw new Exception("Unable to reload Libronix workspace");
 		}
+#endif
 	}
 }
