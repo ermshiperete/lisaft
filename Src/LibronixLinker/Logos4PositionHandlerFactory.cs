@@ -55,7 +55,7 @@ namespace SIL.Utils
 				else
 				{
 					// Not installed
-					throw new LibronixNotInstalledException("Libronix isn't installed", null);
+					throw new LibronixNotInstalledException(string.Format("Logos4 isn't installed (error code 0x{0:x})", (uint)e.ErrorCode), e);
 				}
 			}
 			catch (Exception e)

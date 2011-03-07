@@ -30,7 +30,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("SIL")]
 [assembly: AssemblyProduct("SIL FieldWorks")]
-[assembly: AssemblyCopyright("(C) 2006-2010, SIL International")]
+[assembly: AssemblyCopyright("(C) 2006-2011, SIL International")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]		
 
@@ -43,9 +43,9 @@ using System.Runtime.InteropServices;
 //      Revision
 //
 
-[assembly: AssemblyFileVersion("3.0.3")]
-[assembly: AssemblyInformationalVersionAttribute("3.0.3")]
-[assembly: AssemblyVersion("3.0.3.*")]
+[assembly: AssemblyFileVersion("3.0.4")]
+[assembly: AssemblyInformationalVersionAttribute("3.0.4")]
+[assembly: AssemblyVersion("3.0.4.*")]
 
 //
 // In order to sign your assembly you must specify a key to use. Refer to the 
